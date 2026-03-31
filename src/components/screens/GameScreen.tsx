@@ -123,7 +123,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
                 {i === 0 ? '▲' : i + 1}
               </span>
               <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-                {p.name[0].toUpperCase()}
+                {p.name?.[0]?.toUpperCase() ?? '?'}
               </div>
               <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isMe ? 'var(--text)' : 'var(--text2)' }}>
                 {isMe ? 'You' : p.name}
@@ -177,7 +177,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
               const isLeader = p.id === sortedPlayers[0]?.id
               return (
                 <div key={p.id} style={{ background: isLeader ? 'var(--accent-pale)' : 'var(--surface2)', border: `1px solid ${isLeader ? '#f59e0b' : 'var(--border)'}`, borderRadius: '7px', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: bg + '20', color: bg, fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{p.name[0]}</div>
+                  <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: bg + '20', color: bg, fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
                   <span style={{ color: 'var(--text5)' }}>{p.id === myId ? 'You' : p.name.split(' ')[0]}</span>
                   <span style={{ fontWeight: 700, color: '#f59e0b', fontFamily: 'Space Mono, monospace' }}>{p.score}</span>
                 </div>

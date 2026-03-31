@@ -54,7 +54,7 @@ export default function ResultsScreen({ scores, myId, myName, players, hostId, a
             const blockBorder = i === 1 ? '#78350f' : i === 0 ? '#2a2a2a' : '#7c2d12'
             return (
               <div key={p.id} style={{ flex: 1, maxWidth: '130px', textAlign: 'center' }}>
-                <div style={{ width: '46px', height: '46px', borderRadius: '50%', margin: '0 auto 7px', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700 }}>{p.name[0]}</div>
+                <div style={{ width: '46px', height: '46px', borderRadius: '50%', margin: '0 auto 7px', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700 }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{isMe ? 'You' : p.name}</div>
                 <div style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', color: '#555', marginBottom: '6px' }}>{p.score} pts</div>
                 <div style={{ height: `${podiumHeight[i]}px`, borderRadius: '9px 9px 0 0', background: blockBg, border: `1px solid ${blockBorder}`, borderBottom: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontFamily: 'Space Mono, monospace', fontWeight: 700, color: i === 1 ? '#f59e0b' : '#555' }}>
@@ -84,7 +84,7 @@ export default function ResultsScreen({ scores, myId, myName, players, hostId, a
             return (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '7px 0', borderBottom: i < all.length - 1 ? '1px solid #1a1a1a' : 'none' }}>
                 <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '12px', color: '#444', width: '18px' }}>{i + 1}</span>
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name[0]}</div>
+                <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
                 <span style={{ flex: 1, fontSize: '14px', fontWeight: isMe ? 700 : 400, color: '#fff' }}>{isMe ? `You (${p.name})` : p.name}</span>
                 <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '13px', color: '#f59e0b', fontWeight: 700 }}>{p.score}</span>
               </div>
