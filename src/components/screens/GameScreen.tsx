@@ -70,6 +70,10 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
   }, [answer, onSubmit, currentWord])
 
   useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Enter') handleSubmit()
       if (e.key === 'Tab') { e.preventDefault(); setAnswer(''); onSkip() }
