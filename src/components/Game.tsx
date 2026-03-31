@@ -274,7 +274,7 @@ export default function Game() {
         if (d.isHost) setHostId(pid)
         if (event === 'player_join') {
           pub('player_update', {
-            id: myId.current, name: myName, isHost: amHostRef.current,
+            id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
             score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
           })
         }
@@ -350,7 +350,7 @@ export default function Game() {
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         pub('player_join', {
-          id: myId.current, name: myName, isHost: amHostRef.current,
+          id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
           score: 0, correct: 0, streak: 0
         })
         setScreen('waiting')
@@ -369,6 +369,7 @@ export default function Game() {
   // ── Create / Join / Solo ──
   const createRoom = useCallback((name: string, category: string, isRankedVal: boolean) => {
     isSoloRef.current = false
+    myNameRef.current = name
     setMyName(name)
     setWordCategory(category)
     wordCategoryRef.current = category
@@ -386,6 +387,7 @@ export default function Game() {
 
   const joinRoom = useCallback((name: string, code: string) => {
     isSoloRef.current = false
+    myNameRef.current = name
     setMyName(name)
     setRoomCode(code.toUpperCase())
     setAmHost(false)
@@ -483,7 +485,7 @@ export default function Game() {
           setGameActive(false)
           stop()
           pub('player_update', {
-            id: myId.current, name: myName, isHost: amHostRef.current,
+            id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
             score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
           })
           if (amHostRef.current) setTimeout(finishGame, 800)
@@ -515,6 +517,7 @@ export default function Game() {
   const startSolo = useCallback((name: string, category: string, isRankedVal: boolean, duration = 60) => {
     isSoloRef.current = true
     gameDurationRef.current = duration
+    myNameRef.current = name
     setMyName(name)
     setWordCategory(category)
     wordCategoryRef.current = category
@@ -537,7 +540,7 @@ export default function Game() {
     setPlayers(prev => {
       const s: Record<string, { name: string; score: number; correct: number }> = {}
       for (const p of Object.values(prev)) s[p.id] = { name: p.name, score: p.score, correct: p.correct }
-      s[myId.current] = { name: myName, score: myScoreRef.current, correct: myCorrectRef.current }
+      s[myId.current] = { name: myNameRef.current, score: myScoreRef.current, correct: myCorrectRef.current }
       computedScores = s
       pub('end', { scores: s })
       setFinalScores(s)
@@ -610,7 +613,7 @@ export default function Game() {
       addFeed('You missed', 'no')
     }
 
-    pub('answer', { name: myName, correct, score: myScoreRef.current, totalCorrect: myCorrectRef.current })
+    pub('answer', { name: myNameRef.current, correct, score: myScoreRef.current, totalCorrect: myCorrectRef.current })
     return correct
   }, [myName, pub, speak, addFeed, voiceSpeed, prefetch])
 
@@ -727,7 +730,7 @@ export default function Game() {
           onCategoryChange={(cat) => { setWordCategory(cat); pub('rematch_diff', { wordCategory: cat }) }}
           onRematchReady={() => {
             setPlayers(prev => prev[myId.current] ? { ...prev, [myId.current]: { ...prev[myId.current], rematchReady: true } } : prev)
-            pub('rematch_ready', { name: myName })
+            pub('rematch_ready', { name: myNameRef.current })
           }}
         />
       )}

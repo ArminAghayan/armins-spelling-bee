@@ -134,7 +134,7 @@ export default function WaitingScreen({
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'var(--surface2)', borderRadius: '9px', marginBottom: '7px', border: `1px solid ${p.id === myId ? '#f59e0b' : 'var(--border)'}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name[0].toUpperCase()}</div>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
                     <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{p.name}{p.id === myId && <span style={{ fontSize: '10px', color: 'var(--text5)', marginLeft: '4px' }}>(you)</span>}</span>
                   </div>
                   <span style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '20px', fontFamily: 'Space Mono, monospace', fontWeight: 700, background: p.id === hostId ? '#f59e0b' : '#f59e0b22', color: p.id === hostId ? '#000' : '#f59e0b' }}>
