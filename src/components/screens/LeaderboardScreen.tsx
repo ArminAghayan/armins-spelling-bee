@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { avatarColor } from '@/lib/words'
-import { fetchLeaderboardFromStats, fetchLeaderboardByPeriod, type UserStats, type HofScore } from '@/lib/supabase'
+import { fetchLeaderboard, fetchLeaderboardByPeriod, type HofScore } from '@/lib/supabase'
 import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
 
 type Tab = 'all' | 'month' | 'week' | 'day'
@@ -36,16 +36,21 @@ function sinceDate(tab: Tab): Date {
 }
 
 function dedupeHofScores(rows: HofScore[]): DisplayEntry[] {
+  // Dedupe by name so players with a mix of anonymous + authenticated rows aren't doubled
   const best: Record<string, HofScore> = {}
   for (const r of rows) {
-    const key = r.user_id || r.name
-    if (!best[key] || r.score > best[key].score) best[key] = r
+    if (!best[r.name] || r.score > best[r.name].score) best[r.name] = r
+  }
+  // Prefer any user_id found for a given name (for profile links)
+  const userIdByName: Record<string, string> = {}
+  for (const r of rows) {
+    if (r.user_id && !userIdByName[r.name]) userIdByName[r.name] = r.user_id
   }
   return Object.values(best)
     .sort((a, b) => b.score - a.score)
     .map(r => ({
-      key: r.user_id || r.name,
-      userId: r.user_id,
+      key: userIdByName[r.name] || r.name,
+      userId: userIdByName[r.name],
       name: r.name,
       score: r.score,
       words: r.words,
@@ -62,15 +67,8 @@ export default function LeaderboardScreen({ myName, onBack }: Props) {
   useEffect(() => {
     setLoading(true)
     if (tab === 'all') {
-      fetchLeaderboardFromStats().then((rows: UserStats[]) => {
-        setEntries(rows.map(r => ({
-          key: r.id,
-          userId: r.id,
-          name: r.display_name,
-          score: r.ranked_high_score,
-          words: r.total_words_correct,
-          ago: r.updated_at ? formatAgo(new Date(r.updated_at)) : '',
-        })))
+      fetchLeaderboard().then((rows: HofScore[]) => {
+        setEntries(dedupeHofScores(rows))
         setLoading(false)
       })
     } else {

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { fetchLeaderboardFromStats } from '@/lib/supabase'
+import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import { avatarColor } from '@/lib/words'
 import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword, IconFlag } from '@tabler/icons-react'
 import GalaxyIcon from '@/components/ui/GalaxyIcon'
@@ -52,11 +52,24 @@ export default function HomeScreen({
   const [showSettings, setShowSettings] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [sidebarData, setSidebarData] = useState<UserStats[]>([])
+  const [sidebarData, setSidebarData] = useState<{ key: string; userId?: string; name: string; score: number }[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; userId?: string } | null>(null)
 
   useEffect(() => {
-    fetchLeaderboardFromStats().then(setSidebarData)
+    fetchLeaderboard().then((rows: HofScore[]) => {
+      const best: Record<string, HofScore> = {}
+      for (const r of rows) {
+        if (!best[r.name] || r.score > best[r.name].score) best[r.name] = r
+      }
+      const userIdByName: Record<string, string> = {}
+      for (const r of rows) {
+        if (r.user_id && !userIdByName[r.name]) userIdByName[r.name] = r.user_id
+      }
+      const deduped = Object.values(best)
+        .sort((a, b) => b.score - a.score)
+        .map(r => ({ key: userIdByName[r.name] || r.name, userId: userIdByName[r.name], name: r.name, score: r.score }))
+      setSidebarData(deduped)
+    })
     const params = new URLSearchParams(window.location.search)
     const urlCode = params.get('code')
     if (urlCode) { setCode(urlCode.toUpperCase()); setMode('join') }
@@ -94,7 +107,7 @@ export default function HomeScreen({
     onJoinRoom(effectiveName, code.trim())
   }
 
-  const ranked = [...sidebarData].sort((a, b) => b.ranked_high_score - a.ranked_high_score).slice(0, 15)
+  const ranked = sidebarData.slice(0, 15)
 
   return (
     <div className="setup-wrap" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '24px', background: 'var(--bg-page)' }}>
@@ -119,17 +132,17 @@ export default function HomeScreen({
         {ranked.length === 0 ? (
           <div style={{ color: 'var(--text3)', fontSize: '12px', fontFamily: 'Space Mono, monospace', textAlign: 'center', padding: '20px 0' }}>No scores yet</div>
         ) : ranked.map((e, i) => {
-          const bg = avatarColor(e.display_name)
+          const bg = avatarColor(e.name)
           return (
-            <div key={e.id}
-              onClick={() => setSelectedPlayer({ name: e.display_name, userId: e.id })}
+            <div key={e.key}
+              onClick={() => setSelectedPlayer({ name: e.name, userId: e.userId })}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 8px', borderBottom: '1px solid var(--surface2)', cursor: 'pointer', borderRadius: '6px', transition: 'background .1s' }}
               onMouseEnter={e2 => (e2.currentTarget.style.background = 'var(--surface2)')}
               onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
               <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, minWidth: '18px', color: i === 0 ? '#f59e0b' : i === 1 ? 'var(--text2)' : i === 2 ? '#cd7f32' : 'var(--text5)' }}>{i + 1}</span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>{e.display_name?.[0]?.toUpperCase() ?? '?'}</div>
-              <span style={{ flex: 1, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text2)' }}>{e.display_name}</span>
-              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '12px', fontWeight: 700, color: '#f59e0b' }}>{e.ranked_high_score}</span>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>{e.name?.[0]?.toUpperCase() ?? '?'}</div>
+              <span style={{ flex: 1, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text2)' }}>{e.name}</span>
+              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '12px', fontWeight: 700, color: '#f59e0b' }}>{e.score}</span>
             </div>
           )
         })}

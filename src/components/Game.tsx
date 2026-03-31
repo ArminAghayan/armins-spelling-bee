@@ -149,6 +149,9 @@ export default function Game() {
   // ── Leaderboard ──
   const [showLeaderboard, setShowLeaderboard] = useState(false)
 
+  // ── Join-rejected toast ──
+  const [joinRejectedMsg, setJoinRejectedMsg] = useState('')
+
   // ── Refs ──
   const channelRef = useRef<ReturnType<typeof supa.channel> | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -161,6 +164,7 @@ export default function Game() {
   const isRankedRef = useRef(false)
   const wordCategoryRef = useRef('default')
   const amHostRef = useRef(false)
+  const gameActiveRef = useRef(false)
   const feedCounter = useRef(0)
   // Stat-tracking refs (reset each game)
   const myMaxStreakRef = useRef(0)
@@ -179,6 +183,7 @@ export default function Game() {
   useEffect(() => { isRankedRef.current = isRanked }, [isRanked])
   useEffect(() => { wordCategoryRef.current = wordCategory }, [wordCategory])
   useEffect(() => { amHostRef.current = amHost }, [amHost])
+  useEffect(() => { gameActiveRef.current = gameActive }, [gameActive])
 
   // ── Helpers ──
   const addFeed = useCallback((msg: string, type: 'ok' | 'no') => {
@@ -248,6 +253,11 @@ export default function Game() {
       case 'player_join':
       case 'player_update': {
         const pid = (d.id as string) || d.from!
+        // If the game is already running and a new player tries to join, kick them
+        if (event === 'player_join' && gameActiveRef.current && amHostRef.current) {
+          pub('game_in_progress', { target: pid })
+          break
+        }
         setPlayers(prev => {
           const updated = { ...prev }
           updated[pid] = {
@@ -267,6 +277,17 @@ export default function Game() {
             id: myId.current, name: myName, isHost: amHostRef.current,
             score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
           })
+        }
+        break
+      }
+      case 'game_in_progress': {
+        if ((d.target as string) === myId.current) {
+          if (channelRef.current) { supa.removeChannel(channelRef.current); channelRef.current = null }
+          setPlayers({})
+          setGameActive(false)
+          setScreen('home')
+          setJoinRejectedMsg('That game has already started.')
+          setTimeout(() => setJoinRejectedMsg(''), 4000)
         }
         break
       }
@@ -322,7 +343,7 @@ export default function Game() {
       config: { broadcast: { self: false } }
     })
 
-    ;(['player_join','player_update','state','start','answer','end','rematch_diff','rematch_ready'] as const).forEach(ev => {
+    ;(['player_join','player_update','state','start','answer','end','rematch_diff','rematch_ready','game_in_progress'] as const).forEach(ev => {
       channel.on('broadcast', { event: ev }, ({ payload }) => handleMsg(ev, payload as Record<string, unknown>))
     })
 
@@ -473,9 +494,12 @@ export default function Game() {
               setPlayers(prev => {
                 const s: Record<string, { name: string; score: number; correct: number }> = {}
                 for (const p of Object.values(prev)) s[p.id] = { name: p.name, score: p.score, correct: p.correct }
-                s[myId.current] = { name: myName, score: myScoreRef.current, correct: myCorrectRef.current }
+                s[myId.current] = { name: myNameRef.current, score: myScoreRef.current, correct: myCorrectRef.current }
                 setFinalScores(s)
                 setScreen('results')
+                if (isRankedRef.current && authUserRef.current && myScoreRef.current > 0) {
+                  submitScore({ user_id: authUserRef.current.id, name: myNameRef.current, score: myScoreRef.current, words: myCorrectRef.current, difficulty: 'ranked' })
+                }
                 saveGameStats(s)
                 return prev
               })
@@ -531,13 +555,17 @@ export default function Game() {
     if (timerRef.current) clearInterval(timerRef.current)
     setGameActive(false)
     stop()
-    setFinalScores(scores)
-    setScreen('results')
-    if (isRankedRef.current && authUserRef.current) {
-      const my = scores[myId.current]
-      if (my && my.score > 0) submitScore({ user_id: authUserRef.current.id, name: myNameRef.current, score: my.score, words: my.correct, difficulty: 'ranked' })
+    // Always use local refs for own score — host's copy can be stale due to network lag
+    const correctedScores = {
+      ...scores,
+      [myId.current]: { name: myNameRef.current, score: myScoreRef.current, correct: myCorrectRef.current },
     }
-    saveGameStats(scores)
+    setFinalScores(correctedScores)
+    setScreen('results')
+    if (isRankedRef.current && authUserRef.current && myScoreRef.current > 0) {
+      submitScore({ user_id: authUserRef.current.id, name: myNameRef.current, score: myScoreRef.current, words: myCorrectRef.current, difficulty: 'ranked' })
+    }
+    saveGameStats(correctedScores)
   }, [myName, stop, saveGameStats])
 
   const submitAnswer = useCallback((answer: string) => {
@@ -728,6 +756,19 @@ export default function Game() {
           initialMode={authMode}
           onClose={() => setShowAuth(false)}
         />
+      )}
+
+      {/* Game-in-progress rejection toast */}
+      {joinRejectedMsg && (
+        <div style={{
+          position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)',
+          background: '#1c1917', border: '1px solid #f59e0b', borderRadius: '10px',
+          padding: '12px 22px', color: '#f59e0b', fontSize: '14px', fontWeight: 600,
+          fontFamily: 'Inter, sans-serif', zIndex: 99999, boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+          animation: 'feedIn .25s ease', whiteSpace: 'nowrap',
+        }}>
+          ⚠️ {joinRejectedMsg}
+        </div>
       )}
     </div>
   )

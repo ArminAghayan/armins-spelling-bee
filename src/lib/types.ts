@@ -27,3 +27,4 @@ export type BroadcastEvent =
   | { type: 'end'; scores: Record<string, { name: string; score: number; correct: number }> }
   | { type: 'rematch_diff'; wordCategory: string }
   | { type: 'rematch_ready'; name: string }
+  | { type: 'game_in_progress'; target: string }
