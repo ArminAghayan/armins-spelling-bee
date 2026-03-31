@@ -73,6 +73,15 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
   return data
 }
 
+export async function getUserStatsByName(displayName: string): Promise<UserStats | null> {
+  const { data } = await supa
+    .from('user_stats')
+    .select('*')
+    .eq('display_name', displayName)
+    .single()
+  return data
+}
+
 export async function upsertUserStats(stats: Partial<UserStats> & { id: string }) {
   await supa
     .from('user_stats')

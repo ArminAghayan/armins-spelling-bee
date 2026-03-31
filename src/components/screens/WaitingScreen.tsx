@@ -9,6 +9,7 @@ import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
 import StatsModal from '@/components/ui/StatsModal'
 import ProfileModal from '@/components/ui/ProfileModal'
+import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
 
 const CATEGORIES = ['default','expert','cities','places','animals','movies','brands','ranked']
 const CAT_LABEL: Record<string, string> = { default:'Random',expert:'Expert',cities:'Cities',places:'Places',animals:'Animals',movies:'Movies',brands:'Brands',ranked:'Ranked' }
@@ -49,6 +50,7 @@ export default function WaitingScreen({
   const [showStats, setShowStats] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [sidebarData, setSidebarData] = useState<HofScore[]>([])
+  const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; userId?: string } | null>(null)
 
   useEffect(() => { fetchLeaderboard().then(setSidebarData) }, [])
 
@@ -84,7 +86,11 @@ export default function WaitingScreen({
             ) : ranked.map((e, i) => {
               const bg = avatarColor(e.name)
               return (
-                <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: '1px solid var(--surface2)' }}>
+                <div key={e.name}
+                  onClick={() => setSelectedPlayer({ name: e.name, userId: e.user_id })}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 8px', borderBottom: '1px solid var(--surface2)', cursor: 'pointer', borderRadius: '6px', transition: 'background .1s' }}
+                  onMouseEnter={e2 => (e2.currentTarget.style.background = 'var(--surface2)')}
+                  onMouseLeave={e2 => (e2.currentTarget.style.background = 'transparent')}>
                   <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, minWidth: '18px', color: i === 0 ? '#f59e0b' : i === 1 ? 'var(--text2)' : i === 2 ? '#cd7f32' : 'var(--text5)' }}>{i + 1}</span>
                   <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>{e.name?.[0]?.toUpperCase() ?? '?'}</div>
                   <span style={{ flex: 1, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text2)' }}>{e.name}</span>
@@ -302,6 +308,15 @@ export default function WaitingScreen({
           userStats={userStats}
           onClose={() => setShowProfile(false)}
           onUpdated={(stats) => { onStatsUpdated(stats); setShowProfile(false) }}
+        />
+      )}
+
+      {/* Player Stats Modal */}
+      {selectedPlayer && (
+        <PlayerStatsModal
+          name={selectedPlayer.name}
+          userId={selectedPlayer.userId}
+          onClose={() => setSelectedPlayer(null)}
         />
       )}
     </div>

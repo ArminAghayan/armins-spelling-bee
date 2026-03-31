@@ -148,6 +148,7 @@ export default function Game() {
 
   // ── Leaderboard ──
   const [hofData, setHofData] = useState<HofScore[]>([])
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
 
   // ── Refs ──
   const channelRef = useRef<ReturnType<typeof supa.channel> | null>(null)
@@ -581,7 +582,7 @@ export default function Game() {
 
   // ── Leaderboard ──
   const openLeaderboard = useCallback(async () => {
-    setScreen('leaderboard')
+    setShowLeaderboard(true)
     const data = await fetchLeaderboard()
     setHofData(data)
   }, [])
@@ -688,11 +689,11 @@ export default function Game() {
         />
       )}
 
-      {screen === 'leaderboard' && (
+      {showLeaderboard && (
         <LeaderboardScreen
           data={hofData}
           myName={myName}
-          onBack={() => setScreen('home')}
+          onBack={() => setShowLeaderboard(false)}
         />
       )}
 
