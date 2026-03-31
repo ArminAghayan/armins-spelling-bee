@@ -1,5 +1,6 @@
 'use client'
-import { IconGalaxy, IconUserPlus, IconLogin, IconUser } from '@tabler/icons-react'
+import { IconUserPlus, IconLogin, IconUser } from '@tabler/icons-react'
+import GalaxyIcon from '@/components/ui/GalaxyIcon'
 
 interface Props {
   onOpenAuth: (mode: 'signin' | 'signup') => void
@@ -25,7 +26,7 @@ export default function WelcomeModal({ onOpenAuth, onGuest }: Props) {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
-          <IconGalaxy size={36} stroke={1.5} color="#f59e0b" />
+          <GalaxyIcon size={36} stroke={1.5} color="#f59e0b" />
           <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>
             Carbon Spelling
           </span>

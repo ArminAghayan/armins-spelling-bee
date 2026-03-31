@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import { avatarColor } from '@/lib/words'
-import { IconChartBar, IconUser, IconSettings, IconUsers, IconGalaxy, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword } from '@tabler/icons-react'
+import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword } from '@tabler/icons-react'
+import GalaxyIcon from '@/components/ui/GalaxyIcon'
 import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
 import StatsModal from '@/components/ui/StatsModal'
@@ -100,7 +101,7 @@ export default function HomeScreen({
       {/* Full-width title bar (desktop only) */}
       <div className="home-title-bar" style={{ width: '100%', maxWidth: '984px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap' }}>
-          <IconGalaxy size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
+          <GalaxyIcon size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
           Carbon Spelling
         </div>
       </div>

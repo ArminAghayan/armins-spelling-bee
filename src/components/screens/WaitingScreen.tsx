@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { avatarColor } from '@/lib/words'
 import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import type { Player } from '@/lib/types'
-import { IconChartBar, IconUser, IconSettings, IconMoon, IconSun, IconGalaxy, IconUserPlus, IconLogin, IconLogout, IconX } from '@tabler/icons-react'
+import { IconChartBar, IconUser, IconSettings, IconMoon, IconSun, IconUserPlus, IconLogin, IconLogout, IconX } from '@tabler/icons-react'
+import GalaxyIcon from '@/components/ui/GalaxyIcon'
 import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
 import StatsModal from '@/components/ui/StatsModal'
@@ -66,7 +67,7 @@ export default function WaitingScreen({
       {/* Full-width title bar (desktop only) */}
       <div className="home-title-bar" style={{ width: '100%', maxWidth: '984px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap', marginBottom: '24px' }}>
-          <IconGalaxy size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
+          <GalaxyIcon size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
           Carbon Spelling
         </div>
       </div>
