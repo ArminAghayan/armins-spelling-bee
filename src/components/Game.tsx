@@ -507,7 +507,7 @@ export default function Game() {
       setFinalScores(s)
       setScreen('results')
       if (isRankedRef.current && myScoreRef.current > 0 && authUserRef.current) {
-        submitScore({ name: myNameRef.current, score: myScoreRef.current, words: myCorrectRef.current, difficulty: 'ranked' })
+        submitScore({ user_id: authUserRef.current.id, name: myNameRef.current, score: myScoreRef.current, words: myCorrectRef.current, difficulty: 'ranked' })
       }
       return prev
     })
@@ -522,7 +522,7 @@ export default function Game() {
     setScreen('results')
     if (isRankedRef.current && authUserRef.current) {
       const my = scores[myId.current]
-      if (my && my.score > 0) submitScore({ name: myNameRef.current, score: my.score, words: my.correct, difficulty: 'ranked' })
+      if (my && my.score > 0) submitScore({ user_id: authUserRef.current.id, name: myNameRef.current, score: my.score, words: my.correct, difficulty: 'ranked' })
     }
     saveGameStats(scores)
   }, [myName, stop, saveGameStats])

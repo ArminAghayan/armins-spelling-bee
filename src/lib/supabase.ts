@@ -9,6 +9,7 @@ export const supa = createClient(url, key)
 
 export interface HofScore {
   id?: number
+  user_id?: string
   name: string
   score: number
   words: number
@@ -27,6 +28,13 @@ export async function fetchLeaderboard(): Promise<HofScore[]> {
 
 export async function submitScore(entry: Omit<HofScore, 'id' | 'created_at'>) {
   await supa.from('hof_scores').insert(entry)
+}
+
+export async function updateLeaderboardName(userId: string, newName: string) {
+  await supa
+    .from('hof_scores')
+    .update({ name: newName })
+    .eq('user_id', userId)
 }
 
 // ── User Stats ────────────────────────────────────────────────────────────────

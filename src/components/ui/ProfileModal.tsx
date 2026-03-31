@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { IconX, IconPencil, IconCheck, IconMail, IconUser } from '@tabler/icons-react'
 import { avatarColor } from '@/lib/words'
-import { upsertUserStats, type UserStats } from '@/lib/supabase'
+import { upsertUserStats, updateLeaderboardName, type UserStats } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
 interface Props {
@@ -33,6 +33,9 @@ export default function ProfileModal({ authUser, userStats, onClose, onUpdated }
         id: authUser.id,
         display_name: trimmed,
       })
+      if (userStats?.display_name !== trimmed) {
+        await updateLeaderboardName(authUser.id, trimmed)
+      }
       const updated: UserStats = {
         ...(userStats ?? {
           id: authUser.id,
