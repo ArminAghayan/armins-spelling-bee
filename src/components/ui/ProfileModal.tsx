@@ -33,8 +33,9 @@ export default function ProfileModal({ authUser, userStats, onClose, onUpdated }
         id: authUser.id,
         display_name: trimmed,
       })
-      if (userStats?.display_name !== trimmed) {
-        await updateLeaderboardName(authUser.id, trimmed)
+      const oldName = userStats?.display_name
+      if (oldName && oldName !== trimmed) {
+        await updateLeaderboardName(authUser.id, oldName, trimmed)
       }
       const updated: UserStats = {
         ...(userStats ?? {

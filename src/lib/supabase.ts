@@ -30,11 +30,22 @@ export async function submitScore(entry: Omit<HofScore, 'id' | 'created_at'>) {
   await supa.from('hof_scores').insert(entry)
 }
 
-export async function updateLeaderboardName(userId: string, newName: string) {
-  await supa
+export async function updateLeaderboardName(userId: string, oldName: string, newName: string) {
+  // Update rows already linked by user_id
+  const { error: e1 } = await supa
     .from('hof_scores')
     .update({ name: newName })
     .eq('user_id', userId)
+  if (e1) throw new Error(e1.message)
+
+  // Backfill old rows that were inserted before user_id existed:
+  // match by name and claim them for this user at the same time
+  const { error: e2 } = await supa
+    .from('hof_scores')
+    .update({ name: newName, user_id: userId })
+    .eq('name', oldName)
+    .is('user_id', null)
+  if (e2) throw new Error(e2.message)
 }
 
 // ── User Stats ────────────────────────────────────────────────────────────────
