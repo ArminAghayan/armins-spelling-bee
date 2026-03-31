@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import { avatarColor } from '@/lib/words'
-import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword } from '@tabler/icons-react'
+import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword, IconFlag } from '@tabler/icons-react'
 import GalaxyIcon from '@/components/ui/GalaxyIcon'
 import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
@@ -17,6 +17,7 @@ const GAME_TYPES = [
   { id: 'animals',  label: 'Animals', sub: 'Flora and fauna',         isRanked: false, Icon: IconPaw          },
   { id: 'movies',   label: 'Movies',  sub: 'Film titles & terms',     isRanked: false, Icon: IconMovie        },
   { id: 'brands',   label: 'Brands',  sub: 'Companies & logos',       isRanked: false, Icon: IconBuildingStore },
+  { id: 'flags',    label: 'Flags',   sub: 'Name the country',         isRanked: false, Icon: IconFlag         },
   { id: 'ranked',   label: 'Ranked',  sub: 'Saves to leaderboard',    isRanked: true,  Icon: IconSword        },
 ]
 

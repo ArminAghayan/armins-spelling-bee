@@ -444,7 +444,7 @@ export default function Game() {
     myLongestWordRef.current = ''
     myAttemptsRef.current = 0
 
-    setTimeout(() => speak(words[0]?.w || '', voiceSpeed), 400)
+    if (wordCategoryRef.current !== 'flags') setTimeout(() => speak(words[0]?.w || '', voiceSpeed), 400)
 
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
@@ -538,7 +538,7 @@ export default function Game() {
     const correct = answer.trim().toLowerCase() === w.w.toLowerCase()
 
     if (correct) {
-      const bonus = myStreakRef.current >= 5 ? 2 : myStreakRef.current >= 3 ? 1 : 0
+      const bonus = Math.max(0, myStreakRef.current - 1)
       const pts = w.p + bonus
       myScoreRef.current += pts
       myCorrectRef.current++
@@ -555,7 +555,7 @@ export default function Game() {
       // Update own player entry
       setPlayers(prev => prev[myId.current] ? { ...prev, [myId.current]: { ...prev[myId.current], score: myScoreRef.current, correct: myCorrectRef.current } } : prev)
       const nextWord = words[wordIndexRef.current % words.length]
-      if (nextWord) setTimeout(() => speak(nextWord.w, voiceSpeed), 300)
+      if (nextWord && wordCategoryRef.current !== 'flags') setTimeout(() => speak(nextWord.w, voiceSpeed), 300)
       addFeed(`You +${pts}`, 'ok')
     } else {
       myStreakRef.current = 0
@@ -576,7 +576,7 @@ export default function Game() {
     setWordIndex(wordIndexRef.current)
     const words = gameWordsRef.current
     const next = words[wordIndexRef.current % words.length]
-    if (next) setTimeout(() => speak(next.w, voiceSpeed), 200)
+    if (next && wordCategoryRef.current !== 'flags') setTimeout(() => speak(next.w, voiceSpeed), 200)
   }, [stop, speak, voiceSpeed])
 
   // ── Leaderboard ──
@@ -658,6 +658,7 @@ export default function Game() {
           myStreak={myStreak}
           recentWords={recentWords}
           isRanked={isRanked}
+          wordCategory={wordCategory}
           feedItems={feedItems}
           onSubmit={submitAnswer}
           onSkip={skipWord}

@@ -12,6 +12,7 @@ interface Props {
   myStreak: number
   recentWords: { word: string; ok: boolean }[]
   isRanked: boolean
+  wordCategory: string
   feedItems: { id: number; msg: string; type: 'ok' | 'no' }[]
   onSubmit: (answer: string) => boolean
   onSkip: () => void
@@ -19,7 +20,7 @@ interface Props {
   onLeave: () => void
 }
 
-export default function GameScreen({ players, myId, currentWord, timeLeft, myScore, myStreak, recentWords, isRanked, feedItems, onSubmit, onSkip, onSpeak, onLeave }: Props) {
+export default function GameScreen({ players, myId, currentWord, timeLeft, myScore, myStreak, recentWords, isRanked, wordCategory, feedItems, onSubmit, onSkip, onSpeak, onLeave }: Props) {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [answer, setAnswer] = useState('')
   const [inputState, setInputState] = useState<'idle' | 'ok' | 'no'>('idle')
@@ -186,28 +187,62 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
         </div>
 
         {/* Streak bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: 'var(--surface)', borderRadius: '9px', marginBottom: '14px', border: '1px solid var(--surface2)' }}>
-          <span style={{ color: 'var(--text5)', fontSize: '12px' }}>Streak</span>
-          <span style={{ fontFamily: 'Space Mono, monospace', fontWeight: 700, color: '#f59e0b', fontSize: '14px' }}>{myStreak}</span>
-          <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', color: 'var(--text5)' }}>{myScore} pts</span>
-        </div>
+        {(() => {
+          const nextBonus = Math.max(0, myStreak - 1)
+          const hasBonus = myStreak >= 2
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: hasBonus ? 'var(--accent-pale)' : 'var(--surface)', borderRadius: '9px', marginBottom: '14px', border: `1px solid ${hasBonus ? '#78350f' : 'var(--surface2)'}`, transition: 'all .2s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '14px' }}>{myStreak >= 3 ? '🔥' : '💡'}</span>
+                <span style={{ color: hasBonus ? '#f59e0b' : 'var(--text5)', fontSize: '12px', fontWeight: 600 }}>
+                  {myStreak === 0 ? 'No streak' : `${myStreak} in a row`}
+                </span>
+              </div>
+              {hasBonus ? (
+                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: '#78350f44', borderRadius: '6px', padding: '2px 8px' }}>
+                  +{nextBonus} bonus next
+                </span>
+              ) : (
+                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '10px', color: 'var(--text5)' }}>
+                  3 in a row for bonus
+                </span>
+              )}
+              <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', color: 'var(--text5)' }}>{myScore} pts</span>
+            </div>
+          )
+        })()}
 
         {/* Word card */}
         <div style={{ textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--surface2)', borderRadius: '16px', padding: '24px 20px', marginBottom: '14px', position: 'relative' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 600 }}>Listen &amp; Spell</div>
-          <button onClick={onSpeak} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'var(--accent-pale)', border: '1.5px solid #f59e0b', borderRadius: '50px', padding: '14px 32px', margin: '0 auto 14px', color: '#f59e0b', fontSize: '15px', fontWeight: 600, cursor: 'pointer', width: '100%', maxWidth: '260px', fontFamily: 'Inter, sans-serif', transition: 'background .15s' }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-            Hear the word
-          </button>
-          {currentWord && <div style={{ fontSize: '13px', color: 'var(--text5)', fontStyle: 'italic' }}>{currentWord.h}</div>}
+          {wordCategory === 'flags' ? (
+            <>
+              <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '14px', fontWeight: 600 }}>Name this country</div>
+              {currentWord && (
+                <img
+                  src={`/flags/${currentWord.h}.svg`}
+                  alt="flag"
+                  style={{ width: '160px', height: 'auto', borderRadius: '6px', border: '1px solid var(--border)', display: 'block', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '10px', fontWeight: 600 }}>Listen &amp; Spell</div>
+              <button onClick={onSpeak} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: 'var(--accent-pale)', border: '1.5px solid #f59e0b', borderRadius: '50px', padding: '14px 32px', margin: '0 auto 14px', color: '#f59e0b', fontSize: '15px', fontWeight: 600, cursor: 'pointer', width: '100%', maxWidth: '260px', fontFamily: 'Inter, sans-serif', transition: 'background .15s' }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
+                Hear the word
+              </button>
+              {currentWord && <div style={{ fontSize: '13px', color: 'var(--text5)', fontStyle: 'italic' }}>{currentWord.h}</div>}
+            </>
+          )}
           {currentWord && <div style={{ position: 'absolute', top: '12px', right: '14px', fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#f59e0b' }}>+{currentWord.p}</div>}
         </div>
 
         {/* Answer input */}
         <div style={{ display: 'flex', gap: '9px', marginBottom: '13px' }}>
           <input ref={inputRef} value={answer} onChange={e => setAnswer(e.target.value)}
-            placeholder="type what you heard..."
+            placeholder={wordCategory === 'flags' ? 'type the country name...' : 'type what you heard...'}
             autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
             style={{ flex: 1, background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: '11px', padding: '13px 16px', color: 'var(--text)', fontFamily: 'Space Mono, monospace', fontSize: '18px', outline: 'none', letterSpacing: '3px', textTransform: 'lowercase', transition: 'all .15s' }}
           />

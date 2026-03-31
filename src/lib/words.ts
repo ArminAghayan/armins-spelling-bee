@@ -1436,9 +1436,82 @@ export function seededShuffle<T>(arr: T[], seed: number): T[] {
   return a
 }
 
+// ── Flags game mode ──────────────────────────────────────────────────────────
+// w = country name to type, h = 2-letter ISO code for /flags/{h}.svg, p = pts
+export const FLAGS_WORDS: Word[] = [
+  // 3-4 letters (3 pts)
+  {w:"chad",h:"td",p:3},{w:"cuba",h:"cu",p:3},{w:"fiji",h:"fj",p:3},
+  {w:"iran",h:"ir",p:3},{w:"iraq",h:"iq",p:3},{w:"laos",h:"la",p:3},
+  {w:"mali",h:"ml",p:3},{w:"oman",h:"om",p:3},{w:"peru",h:"pe",p:3},
+  {w:"togo",h:"tg",p:3},
+  // 5 letters (4 pts)
+  {w:"benin",h:"bj",p:4},{w:"chile",h:"cl",p:4},{w:"china",h:"cn",p:4},
+  {w:"egypt",h:"eg",p:4},{w:"ghana",h:"gh",p:4},{w:"india",h:"in",p:4},
+  {w:"italy",h:"it",p:4},{w:"japan",h:"jp",p:4},{w:"kenya",h:"ke",p:4},
+  {w:"libya",h:"ly",p:4},{w:"nauru",h:"nr",p:4},{w:"nepal",h:"np",p:4},
+  {w:"niger",h:"ne",p:4},{w:"palau",h:"pw",p:4},{w:"qatar",h:"qa",p:4},
+  {w:"samoa",h:"ws",p:4},{w:"spain",h:"es",p:4},{w:"sudan",h:"sd",p:4},
+  {w:"syria",h:"sy",p:4},{w:"tonga",h:"to",p:4},{w:"gabon",h:"ga",p:4},
+  {w:"haiti",h:"ht",p:4},{w:"kenya",h:"ke",p:4},{w:"wales",h:"gb",p:4},
+  // 6 letters (5 pts)
+  {w:"angola",h:"ao",p:5},{w:"belize",h:"bz",p:5},{w:"bhutan",h:"bt",p:5},
+  {w:"brazil",h:"br",p:5},{w:"brunei",h:"bn",p:5},{w:"canada",h:"ca",p:5},
+  {w:"cyprus",h:"cy",p:5},{w:"france",h:"fr",p:5},{w:"gambia",h:"gm",p:5},
+  {w:"greece",h:"gr",p:5},{w:"guinea",h:"gn",p:5},{w:"guyana",h:"gy",p:5},
+  {w:"israel",h:"il",p:5},{w:"jordan",h:"jo",p:5},{w:"kuwait",h:"kw",p:5},
+  {w:"latvia",h:"lv",p:5},{w:"lesotho",h:"ls",p:5},{w:"malawi",h:"mw",p:5},
+  {w:"mexico",h:"mx",p:5},{w:"monaco",h:"mc",p:5},{w:"norway",h:"no",p:5},
+  {w:"panama",h:"pa",p:5},{w:"poland",h:"pl",p:5},{w:"rwanda",h:"rw",p:5},
+  {w:"russia",h:"ru",p:5},{w:"serbia",h:"rs",p:5},{w:"sweden",h:"se",p:5},
+  {w:"taiwan",h:"tw",p:5},{w:"turkey",h:"tr",p:5},{w:"tuvalu",h:"tv",p:5},
+  {w:"uganda",h:"ug",p:5},{w:"zambia",h:"zm",p:5},
+  // 7 letters (6 pts)
+  {w:"albania",h:"al",p:6},{w:"algeria",h:"dz",p:6},{w:"andorra",h:"ad",p:6},
+  {w:"armenia",h:"am",p:6},{w:"austria",h:"at",p:6},{w:"bahrain",h:"bh",p:6},
+  {w:"belarus",h:"by",p:6},{w:"belgium",h:"be",p:6},{w:"bolivia",h:"bo",p:6},
+  {w:"croatia",h:"hr",p:6},{w:"denmark",h:"dk",p:6},{w:"ecuador",h:"ec",p:6},
+  {w:"eritrea",h:"er",p:6},{w:"estonia",h:"ee",p:6},{w:"finland",h:"fi",p:6},
+  {w:"georgia",h:"ge",p:6},{w:"germany",h:"de",p:6},{w:"grenada",h:"gd",p:6},
+  {w:"hungary",h:"hu",p:6},{w:"iceland",h:"is",p:6},{w:"ireland",h:"ie",p:6},
+  {w:"jamaica",h:"jm",p:6},{w:"lebanon",h:"lb",p:6},{w:"moldova",h:"md",p:6},
+  {w:"morocco",h:"ma",p:6},{w:"myanmar",h:"mm",p:6},{w:"namibia",h:"na",p:6},
+  {w:"nigeria",h:"ng",p:6},{w:"romania",h:"ro",p:6},{w:"senegal",h:"sn",p:6},
+  {w:"somalia",h:"so",p:6},{w:"ukraine",h:"ua",p:6},{w:"uruguay",h:"uy",p:6},
+  {w:"vanuatu",h:"vu",p:6},{w:"vietnam",h:"vn",p:6},
+  // 8 letters (7 pts)
+  {w:"botswana",h:"bw",p:7},{w:"bulgaria",h:"bg",p:7},{w:"cambodia",h:"kh",p:7},
+  {w:"colombia",h:"co",p:7},{w:"comoros",h:"km",p:7},{w:"djibouti",h:"dj",p:7},
+  {w:"dominica",h:"dm",p:7},{w:"ethiopia",h:"et",p:7},{w:"honduras",h:"hn",p:7},
+  {w:"kiribati",h:"ki",p:7},{w:"malaysia",h:"my",p:7},{w:"maldives",h:"mv",p:7},
+  {w:"mongolia",h:"mn",p:7},{w:"pakistan",h:"pk",p:7},{w:"paraguay",h:"py",p:7},
+  {w:"portugal",h:"pt",p:7},{w:"slovakia",h:"sk",p:7},{w:"slovenia",h:"si",p:7},
+  {w:"tanzania",h:"tz",p:7},{w:"thailand",h:"th",p:7},{w:"zimbabwe",h:"zw",p:7},
+  // 9+ letters (8-10 pts)
+  {w:"argentina",h:"ar",p:8},{w:"australia",h:"au",p:8},{w:"indonesia",h:"id",p:8},
+  {w:"lithuania",h:"lt",p:8},{w:"macedonia",h:"mk",p:8},{w:"mauritius",h:"mu",p:8},
+  {w:"nicaragua",h:"ni",p:8},{w:"singapore",h:"sg",p:8},{w:"venezuela",h:"ve",p:8},
+  {w:"bangladesh",h:"bd",p:9},{w:"east timor",h:"tl",p:9},{w:"kyrgyzstan",h:"kg",p:9},
+  {w:"luxembourg",h:"lu",p:9},{w:"mozambique",h:"mz",p:9},{w:"tajikistan",h:"tj",p:9},
+  {w:"uzbekistan",h:"uz",p:9},
+  {w:"afghanistan",h:"af",p:10},{w:"netherlands",h:"nl",p:10},{w:"philippines",h:"ph",p:10},
+  {w:"switzerland",h:"ch",p:10},{w:"timor-leste",h:"tl",p:10},
+  {w:"saudi arabia",h:"sa",p:11},{w:"sierra leone",h:"sl",p:11},{w:"south africa",h:"za",p:11},
+  {w:"south korea",h:"kr",p:10},{w:"south sudan",h:"ss",p:10},{w:"ivory coast",h:"ci",p:10},
+  {w:"burkina faso",h:"bf",p:11},{w:"cape verde",h:"cv",p:9},{w:"costa rica",h:"cr",p:9},
+  {w:"el salvador",h:"sv",p:10},{w:"new zealand",h:"nz",p:10},{w:"puerto rico",h:"pr",p:10},
+  {w:"trinidad and tobago",h:"tt",p:14},{w:"united arab emirates",h:"ae",p:15},
+  {w:"united kingdom",h:"gb",p:11},{w:"united states",h:"us",p:11},
+  {w:"democratic republic of the congo",h:"cd",p:20},{w:"central african republic",h:"cf",p:18},
+  {w:"papua new guinea",h:"pg",p:12},{w:"equatorial guinea",h:"gq",p:12},
+  {w:"dominican republic",h:"do",p:13},{w:"bosnia and herzegovina",h:"ba",p:16},
+  {w:"antigua and barbuda",h:"ag",p:13},{w:"saint kitts and nevis",h:"kn",p:14},
+  {w:"sao tome and principe",h:"st",p:14},{w:"trinidad and tobago",h:"tt",p:14},
+]
+
 export function getWordBank(category: string, isRanked: boolean): Word[] {
   if (isRanked || category === 'ranked') return RANKED_WORDS
   if (category === 'expert') return WORDS.expert
+  if (category === 'flags') return FLAGS_WORDS
   const bank = CATEGORY_WORDS[category]
   if (bank) {
     return [...(bank.random || []), ...(bank.hard || []), ...(bank.expert || [])]

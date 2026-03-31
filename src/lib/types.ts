@@ -1,5 +1,5 @@
 export type Screen = 'home' | 'waiting' | 'game' | 'results' | 'leaderboard'
-export type WordCategory = 'default' | 'expert' | 'cities' | 'places' | 'animals' | 'movies' | 'brands' | 'ranked'
+export type WordCategory = 'default' | 'expert' | 'cities' | 'places' | 'animals' | 'movies' | 'brands' | 'ranked' | 'flags'
 export type GameMode = 'casual' | 'ranked'
 
 export interface Player {

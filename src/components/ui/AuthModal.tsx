@@ -36,7 +36,12 @@ export default function AuthModal({ initialMode, onClose }: Props) {
         onClose()
       }
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Something went wrong')
+      const msg = e instanceof Error ? e.message : 'Something went wrong'
+      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('email rate')) {
+        setErr('Too many sign-up attempts. Please wait a few minutes and try again, or sign in if you already have an account.')
+      } else {
+        setErr(msg)
+      }
     } finally {
       setLoading(false)
     }
