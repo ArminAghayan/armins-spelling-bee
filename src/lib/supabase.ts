@@ -22,12 +22,41 @@ export async function fetchLeaderboard(): Promise<HofScore[]> {
     .from('hof_scores')
     .select('*')
     .order('score', { ascending: false })
-    .limit(50)
+    .limit(500)
+  return data || []
+}
+
+export async function fetchLeaderboardFromStats(): Promise<UserStats[]> {
+  const { data } = await supa
+    .from('user_stats')
+    .select('*')
+    .gt('ranked_high_score', 0)
+    .order('ranked_high_score', { ascending: false })
+  return data || []
+}
+
+export async function fetchLeaderboardByPeriod(since: Date): Promise<HofScore[]> {
+  const { data } = await supa
+    .from('hof_scores')
+    .select('*')
+    .gte('created_at', since.toISOString())
+    .order('score', { ascending: false })
+    .limit(500)
   return data || []
 }
 
 export async function submitScore(entry: Omit<HofScore, 'id' | 'created_at'>) {
   await supa.from('hof_scores').insert(entry)
+}
+
+export async function fetchRecentScores(userId: string, limit = 5): Promise<HofScore[]> {
+  const { data } = await supa
+    .from('hof_scores')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return data || []
 }
 
 export async function updateLeaderboardName(userId: string, oldName: string, newName: string) {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import {
-  supa, fetchLeaderboard, submitScore, type HofScore,
+  supa, submitScore,
   getUserStats, upsertUserStats, authSignOut, type UserStats,
 } from '@/lib/supabase'
 import { getWordBank, seededShuffle, genCode, avatarColor, type Word } from '@/lib/words'
@@ -147,12 +147,12 @@ export default function Game() {
   const [countdownNum, setCountdownNum] = useState(3)
 
   // ── Leaderboard ──
-  const [hofData, setHofData] = useState<HofScore[]>([])
   const [showLeaderboard, setShowLeaderboard] = useState(false)
 
   // ── Refs ──
   const channelRef = useRef<ReturnType<typeof supa.channel> | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pendingResultsRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const gameWordsRef = useRef<Word[]>([])
   const wordIndexRef = useRef(0)
   const myScoreRef = useRef(0)
@@ -168,7 +168,7 @@ export default function Game() {
   const myAttemptsRef = useRef(0)
   const isSoloRef = useRef(false)
 
-  const { speak, stop } = useAzureTTS()
+  const { speak, stop, prefetch } = useAzureTTS()
 
   // Keep refs in sync
   useEffect(() => { gameWordsRef.current = gameWords }, [gameWords])
@@ -377,6 +377,7 @@ export default function Game() {
   const leaveRoom = useCallback(() => {
     stop()
     if (timerRef.current) clearInterval(timerRef.current)
+    if (pendingResultsRef.current) { clearTimeout(pendingResultsRef.current); pendingResultsRef.current = null }
     if (channelRef.current) { supa.removeChannel(channelRef.current); channelRef.current = null }
     setPlayers({})
     setGameActive(false)
@@ -386,6 +387,7 @@ export default function Game() {
   const leaveGame = useCallback(() => {
     stop()
     if (timerRef.current) clearInterval(timerRef.current)
+    if (pendingResultsRef.current) { clearTimeout(pendingResultsRef.current); pendingResultsRef.current = null }
     if (channelRef.current) { supa.removeChannel(channelRef.current); channelRef.current = null }
     setPlayers({})
     setGameActive(false)
@@ -445,7 +447,11 @@ export default function Game() {
     myLongestWordRef.current = ''
     myAttemptsRef.current = 0
 
-    if (wordCategoryRef.current !== 'flags') setTimeout(() => speak(words[0]?.w || '', voiceSpeed), 400)
+    if (wordCategoryRef.current !== 'flags') {
+      setTimeout(() => speak(words[0]?.w || '', voiceSpeed), 400)
+      // Pre-fetch word #2 in the background so it plays immediately after the first answer
+      if (words[1]) prefetch(words[1].w, voiceSpeed)
+    }
 
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
@@ -460,22 +466,27 @@ export default function Game() {
             score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
           })
           if (amHostRef.current) setTimeout(finishGame, 800)
-          else setTimeout(() => {
-            setPlayers(prev => {
-              const scores: Record<string, { name: string; score: number; correct: number }> = {}
-              for (const p of Object.values(prev)) scores[p.id] = { name: p.name, score: p.score, correct: p.correct }
-              scores[myId.current] = { name: myName, score: myScoreRef.current, correct: myCorrectRef.current }
-              setFinalScores(scores)
-              setScreen('results')
-              return prev
-            })
-          }, 3000)
+          else {
+            if (pendingResultsRef.current) clearTimeout(pendingResultsRef.current)
+            pendingResultsRef.current = setTimeout(() => {
+              pendingResultsRef.current = null
+              setPlayers(prev => {
+                const s: Record<string, { name: string; score: number; correct: number }> = {}
+                for (const p of Object.values(prev)) s[p.id] = { name: p.name, score: p.score, correct: p.correct }
+                s[myId.current] = { name: myName, score: myScoreRef.current, correct: myCorrectRef.current }
+                setFinalScores(s)
+                setScreen('results')
+                saveGameStats(s)
+                return prev
+              })
+            }, 3000)
+          }
           return 0
         }
         return next
       })
     }, 1000)
-  }, [myName, pub, speak, stop, voiceSpeed])
+  }, [myName, pub, speak, stop, voiceSpeed, saveGameStats, prefetch])
 
   const startSolo = useCallback((name: string, category: string, isRankedVal: boolean, duration = 60) => {
     isSoloRef.current = true
@@ -516,6 +527,7 @@ export default function Game() {
   }, [myName, pub, saveGameStats])
 
   const endGame = useCallback((scores: Record<string, { name: string; score: number; correct: number }>) => {
+    if (pendingResultsRef.current) { clearTimeout(pendingResultsRef.current); pendingResultsRef.current = null }
     if (timerRef.current) clearInterval(timerRef.current)
     setGameActive(false)
     stop()
@@ -556,7 +568,12 @@ export default function Game() {
       // Update own player entry
       setPlayers(prev => prev[myId.current] ? { ...prev, [myId.current]: { ...prev[myId.current], score: myScoreRef.current, correct: myCorrectRef.current } } : prev)
       const nextWord = words[wordIndexRef.current % words.length]
-      if (nextWord && wordCategoryRef.current !== 'flags') setTimeout(() => speak(nextWord.w, voiceSpeed), 300)
+      if (nextWord && wordCategoryRef.current !== 'flags') {
+        setTimeout(() => speak(nextWord.w, voiceSpeed), 300)
+        // Pre-fetch the word after next so it's ready to play with no delay
+        const wordAfterNext = words[(wordIndexRef.current + 1) % words.length]
+        if (wordAfterNext) prefetch(wordAfterNext.w, voiceSpeed)
+      }
       addFeed(`You +${pts}`, 'ok')
     } else {
       myStreakRef.current = 0
@@ -567,7 +584,7 @@ export default function Game() {
 
     pub('answer', { name: myName, correct, score: myScoreRef.current, totalCorrect: myCorrectRef.current })
     return correct
-  }, [myName, pub, speak, addFeed, voiceSpeed])
+  }, [myName, pub, speak, addFeed, voiceSpeed, prefetch])
 
   const skipWord = useCallback(() => {
     stop()
@@ -581,10 +598,8 @@ export default function Game() {
   }, [stop, speak, voiceSpeed])
 
   // ── Leaderboard ──
-  const openLeaderboard = useCallback(async () => {
+  const openLeaderboard = useCallback(() => {
     setShowLeaderboard(true)
-    const data = await fetchLeaderboard()
-    setHofData(data)
   }, [])
 
   // ── URL code prefill ──
@@ -691,7 +706,6 @@ export default function Game() {
 
       {showLeaderboard && (
         <LeaderboardScreen
-          data={hofData}
           myName={myName}
           onBack={() => setShowLeaderboard(false)}
         />

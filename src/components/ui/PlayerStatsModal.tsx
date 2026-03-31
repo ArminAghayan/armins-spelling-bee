@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { IconX, IconTrophy, IconFlame, IconTarget, IconLetterCase, IconThumbUp, IconThumbDown, IconChartPie, IconSword } from '@tabler/icons-react'
-import { getUserStats, getUserStatsByName } from '@/lib/supabase'
+import { IconX, IconTrophy, IconFlame, IconTarget, IconLetterCase, IconThumbUp, IconThumbDown, IconChartPie, IconSword, IconClock } from '@tabler/icons-react'
+import { getUserStats, getUserStatsByName, fetchRecentScores } from '@/lib/supabase'
 import { avatarColor } from '@/lib/words'
-import type { UserStats } from '@/lib/supabase'
+import type { UserStats, HofScore } from '@/lib/supabase'
 
 interface Props {
   name: string
@@ -45,6 +45,7 @@ function StatCard({ icon, label, value, sub, accent }: {
 
 export default function PlayerStatsModal({ name, userId, onClose }: Props) {
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [recentGames, setRecentGames] = useState<HofScore[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -58,6 +59,10 @@ export default function PlayerStatsModal({ name, userId, onClose }: Props) {
         data = await getUserStatsByName(name)
       }
       setStats(data)
+      if (data?.id) {
+        const recent = await fetchRecentScores(data.id)
+        setRecentGames(recent)
+      }
       setLoading(false)
     }
     load()
@@ -129,7 +134,7 @@ export default function PlayerStatsModal({ name, userId, onClose }: Props) {
                 <StatCard icon={<IconThumbDown size={13} stroke={2} />} label="Losses" value={losses} />
                 <StatCard icon={<IconChartPie size={13} stroke={2} />} label="Win Rate" value={`${winRate}%`} sub={totalGames > 0 ? `${totalGames} games` : 'No games yet'} />
               </div>
-              <div>
+              <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text5)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <IconSword size={12} stroke={2} />
                   Wins by Game Mode
@@ -155,10 +160,52 @@ export default function PlayerStatsModal({ name, userId, onClose }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Recent games */}
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text5)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IconClock size={12} stroke={2} />
+                  Last 5 Ranked Games
+                </div>
+                {recentGames.length === 0 ? (
+                  <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', textAlign: 'center', color: 'var(--text5)', fontSize: '12px' }}>
+                    No ranked games yet
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {recentGames.map((g, i) => {
+                      const date = g.created_at ? new Date(g.created_at) : null
+                      const ago = date ? formatAgo(date) : ''
+                      return (
+                        <div key={g.id ?? i} style={{ flex: 1, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textAlign: 'center' }}>
+                          <div style={{ fontFamily: 'Space Mono, monospace', fontSize: '17px', fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>
+                            {g.score}
+                          </div>
+                          <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text3)', textTransform: 'capitalize' }}>
+                            {MODE_LABELS[g.difficulty] || g.difficulty}
+                          </div>
+                          <div style={{ fontSize: '9px', color: 'var(--text5)', fontFamily: 'Space Mono, monospace' }}>
+                            {g.words}w
+                          </div>
+                          {ago && <div style={{ fontSize: '9px', color: 'var(--text5)' }}>{ago}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </>
           )
         })()}
       </div>
     </div>
   )
+}
+
+function formatAgo(date: Date): string {
+  const s = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
 }
