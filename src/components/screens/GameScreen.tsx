@@ -178,7 +178,9 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
               return (
                 <div key={p.id} style={{ background: isLeader ? 'var(--accent-pale)' : 'var(--surface2)', border: `1px solid ${isLeader ? '#f59e0b' : 'var(--border)'}`, borderRadius: '7px', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: bg + '20', color: bg, fontSize: '8px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
-                  <span style={{ color: 'var(--text5)' }}>{p.id === myId ? 'You' : p.name.split(' ')[0]}</span>
+                  <span style={{ color: 'var(--text5)' }}>
+                    {p.id === myId ? 'You' : p.name.split(' ')[0]}
+                  </span>
                   <span style={{ fontWeight: 700, color: '#f59e0b', fontFamily: 'Space Mono, monospace' }}>{p.score}</span>
                 </div>
               )

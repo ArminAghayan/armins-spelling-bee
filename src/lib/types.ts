@@ -11,6 +11,7 @@ export interface Player {
   rematchReady: boolean
   isHost: boolean
   lobbyReady: boolean
+  isBot?: boolean
 }
 
 export interface GameSettings {

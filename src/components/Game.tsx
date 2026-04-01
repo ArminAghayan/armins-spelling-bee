@@ -7,6 +7,7 @@ import {
   getUserStats, upsertUserStats, authSignOut, type UserStats,
 } from '@/lib/supabase'
 import { getWordBank, seededShuffle, genCode, avatarColor, type Word } from '@/lib/words'
+import { generateBotNames, getRandomBotProfile, shouldBotAnswerCorrectly, getBotThinkTime } from '@/lib/bots'
 import { useAzureTTS } from '@/hooks/useAzureTTS'
 import type { Screen, Player, BroadcastEvent } from '@/lib/types'
 import HomeScreen from '@/components/screens/HomeScreen'
@@ -175,6 +176,9 @@ export default function Game() {
   const myLongestWordRef = useRef('')
   const myAttemptsRef = useRef(0)
   const isSoloRef = useRef(false)
+  const isQuickGameRef = useRef(false)
+  const botTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
+  const botProfilesRef = useRef<Record<string, any>>({})
 
   const { speak, stop, prefetch } = useAzureTTS()
 
@@ -474,6 +478,11 @@ export default function Game() {
     if (timerRef.current) clearInterval(timerRef.current)
     if (pendingResultsRef.current) { clearTimeout(pendingResultsRef.current); pendingResultsRef.current = null }
     if (channelRef.current) { supa.removeChannel(channelRef.current); channelRef.current = null }
+    // Clear bot timers and profiles
+    Object.values(botTimersRef.current).forEach(timer => clearTimeout(timer))
+    botTimersRef.current = {}
+    botProfilesRef.current = {}
+    isQuickGameRef.current = false
     setPlayers({})
     setGameActive(false)
     setGameWords([])
@@ -585,6 +594,11 @@ export default function Game() {
       if (words[1]) prefetch(words[1].w, voiceSpeed)
     }
 
+    // Schedule bot answers for the first word in quick game
+    if (isQuickGameRef.current && words[0]) {
+      setTimeout(() => scheduleBotAnswers(words[0]), 1000) // Give a second delay after word starts
+    }
+
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -593,6 +607,9 @@ export default function Game() {
           clearInterval(timerRef.current!)
           setGameActive(false)
           stop()
+          // Clear bot timers
+          Object.values(botTimersRef.current).forEach(timer => clearTimeout(timer))
+          botTimersRef.current = {}
           pub('player_update', {
             id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
             score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
@@ -628,6 +645,7 @@ export default function Game() {
 
   const startSolo = useCallback((name: string, category: string, isRankedVal: boolean, duration = 60) => {
     isSoloRef.current = true
+    isQuickGameRef.current = false
     gameDurationRef.current = duration
     myNameRef.current = name
     setMyName(name)
@@ -645,6 +663,72 @@ export default function Game() {
     const words = seededShuffle(bank, seed)
     setGameWords(words)
     beginCountdown(() => startGame(words, isRankedVal ? 60 : duration))
+  }, [beginCountdown, startGame])
+
+  const startQuickGame = useCallback((name: string) => {
+    isSoloRef.current = true
+    isQuickGameRef.current = true
+    gameDurationRef.current = 30
+    myNameRef.current = name
+    setMyName(name)
+    setWordCategory('default')
+    wordCategoryRef.current = 'default'
+    setIsRanked(false)
+    isRankedRef.current = false
+    setAmHost(true)
+    amHostRef.current = true
+
+    // Create player and 3-4 bots
+    const botCount = 3 + Math.floor(Math.random() * 2) // 3-4 bots
+    const botNames = generateBotNames(botCount)
+    
+    const allPlayers: Record<string, Player> = {}
+    
+    // Add human player
+    allPlayers[myId.current] = { 
+      id: myId.current, 
+      name, 
+      score: 0, 
+      correct: 0, 
+      streak: 0, 
+      rematchReady: false, 
+      isHost: true, 
+      lobbyReady: true 
+    }
+
+    // Add bots
+    botNames.forEach((botName, index) => {
+      const botId = `bot_${index + 1}`
+      const botProfile = {
+        name: 'Intermediate Bot',
+        accuracy: 0.65, // 65% accuracy
+        minThinkTime: 2000, // 2-5 seconds to answer
+        maxThinkTime: 5000,
+        streakBonus: 0.1
+      }
+      botProfilesRef.current[botId] = botProfile
+      
+      allPlayers[botId] = {
+        id: botId,
+        name: botName,
+        score: 0,
+        correct: 0,
+        streak: 0,
+        rematchReady: false,
+        isHost: false,
+        lobbyReady: true,
+        isBot: true
+      }
+    })
+
+    setPlayers(allPlayers)
+    setHostId(myId.current)
+    
+    const bank = getWordBank('default', false)
+    const seed = Math.floor(Math.random() * 2147483647)
+    const words = seededShuffle(bank, seed)
+    setGameWords(words)
+    beginCountdown(() => startGame(words, 30))
   }, [beginCountdown, startGame])
 
   const finishGame = useCallback(() => {
@@ -723,6 +807,11 @@ export default function Game() {
         const wordAfterNext = words[(wordIndexRef.current + 1) % words.length]
         if (wordAfterNext) prefetch(wordAfterNext.w, voiceSpeed)
       }
+      
+      // Schedule bot answers for the next word in quick game
+      if (isQuickGameRef.current && nextWord) {
+        setTimeout(() => scheduleBotAnswers(nextWord), 800) // Give time for word to be spoken
+      }
       addFeed(`You +${pts}`, 'ok')
     } else {
       myStreakRef.current = 0
@@ -745,6 +834,69 @@ export default function Game() {
     const next = words[wordIndexRef.current % words.length]
     if (next && wordCategoryRef.current !== 'flags') setTimeout(() => speak(next.w, voiceSpeed), 200)
   }, [stop, speak, voiceSpeed])
+
+  // Bot AI logic
+  const handleBotAnswer = useCallback((botId: string, word: Word) => {
+    const botProfile = botProfilesRef.current[botId]
+    if (!botProfile) return
+
+    setPlayers(prev => {
+      const bot = prev[botId]
+      if (!bot || !bot.isBot) return prev
+
+      const shouldAnswer = shouldBotAnswerCorrectly(
+        botProfile.accuracy,
+        bot.streak,
+        botProfile.streakBonus
+      )
+
+      let newScore = bot.score
+      let newCorrect = bot.correct
+      let newStreak = bot.streak
+
+      if (shouldAnswer) {
+        const bonus = Math.max(0, bot.streak - 1)
+        const pts = word.p + bonus
+        newScore += pts
+        newCorrect++
+        newStreak++
+        addFeed(`${bot.name} +${pts}`, 'ok')
+      } else {
+        newStreak = 0
+        addFeed(`${bot.name} missed`, 'no')
+      }
+
+      return {
+        ...prev,
+        [botId]: {
+          ...bot,
+          score: newScore,
+          correct: newCorrect,
+          streak: newStreak
+        }
+      }
+    })
+  }, [addFeed])
+
+  const scheduleBotAnswers = useCallback((word: Word) => {
+    if (!isQuickGameRef.current || !gameActiveRef.current) return
+
+    // Clear existing timers
+    Object.values(botTimersRef.current).forEach(timer => clearTimeout(timer))
+    botTimersRef.current = {}
+
+    // Schedule answers for each bot
+    Object.keys(botProfilesRef.current).forEach(botId => {
+      const botProfile = botProfilesRef.current[botId]
+      const thinkTime = getBotThinkTime(botProfile.minThinkTime, botProfile.maxThinkTime)
+      
+      botTimersRef.current[botId] = setTimeout(() => {
+        if (gameActiveRef.current) {
+          handleBotAnswer(botId, word)
+        }
+      }, thinkTime)
+    })
+  }, [handleBotAnswer])
 
   // ── Lobby ready ──
   const handleLobbyReady = useCallback((ready: boolean) => {
@@ -781,6 +933,7 @@ export default function Game() {
           onCreateRoom={createRoom}
           onJoinRoom={joinRoom}
           onStartSolo={startSolo}
+          onStartQuickGame={startQuickGame}
           onOpenLeaderboard={openLeaderboard}
           voiceSpeed={voiceSpeed}
           onVoiceSpeedChange={(v) => { setVoiceSpeed(v); localStorage.setItem('sb_voice_speed', String(v)) }}

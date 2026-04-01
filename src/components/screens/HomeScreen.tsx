@@ -27,6 +27,7 @@ interface Props {
   onCreateRoom: (name: string, category: string, isRanked: boolean) => void
   onJoinRoom: (name: string, code: string) => void
   onStartSolo: (name: string, category: string, isRanked: boolean, duration?: number) => void
+  onStartQuickGame: (name: string) => void
   onOpenLeaderboard: () => void
   voiceSpeed: number
   onVoiceSpeedChange: (v: number) => void
@@ -41,7 +42,7 @@ interface Props {
 }
 
 export default function HomeScreen({
-  onCreateRoom, onJoinRoom, onStartSolo, onOpenLeaderboard,
+  onCreateRoom, onJoinRoom, onStartSolo, onStartQuickGame, onOpenLeaderboard,
   voiceSpeed, onVoiceSpeedChange, onTestVoice, theme, onToggleTheme,
   authUser, userStats, onOpenAuth, onSignOut, onStatsUpdated,
 }: Props) {
@@ -106,7 +107,7 @@ export default function HomeScreen({
   const handleQuickGame = () => {
     if (!effectiveName) { setErr('Enter your name first'); return }
     setErr('')
-    onStartSolo(effectiveName, 'default', false, 30)
+    onStartQuickGame(effectiveName)
   }
 
   const handleJoin = () => {
@@ -207,7 +208,7 @@ export default function HomeScreen({
                   <IconBolt size={26} stroke={2} />
                   <div style={{ textAlign: 'left' }}>
                     <strong style={{ display: 'block', fontSize: '15px', fontWeight: 800 }}>Quick Game</strong>
-                    <span style={{ fontSize: '11px', opacity: 0.7 }}>30s · random words · play now</span>
+                    <span style={{ fontSize: '11px', opacity: 0.7 }}>30s · multiplayer · Online</span>
                   </div>
                 </button>
                 {/* Solo + Private Casual side by side */}
@@ -243,10 +244,10 @@ export default function HomeScreen({
                   <IconTrophy size={26} stroke={2} style={{ color: '#dc2626', flexShrink: 0, position: 'relative' }} />
                   <div style={{ textAlign: 'left', position: 'relative' }}>
                     <strong style={{ display: 'block', fontSize: '15px', fontWeight: 800, color: '#dc2626' }}>Public Ranked</strong>
-                    <span style={{ fontSize: '11px', color: '#dc262699' }}>Global matchmaking · coming soon</span>
+                    <span style={{ fontSize: '11px', color: '#dc262699' }}>Global matchmaking</span>
                   </div>
                   <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', background: '#dc262622', border: '1px solid #dc262644', borderRadius: '20px', padding: '3px 9px', color: '#dc2626', flexShrink: 0, position: 'relative' }}>
-                    Coming soon...
+                    Coming soon
                   </span>
                 </div>
 
