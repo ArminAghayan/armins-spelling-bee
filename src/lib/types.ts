@@ -10,6 +10,7 @@ export interface Player {
   streak: number
   rematchReady: boolean
   isHost: boolean
+  lobbyReady: boolean
 }
 
 export interface GameSettings {
@@ -27,4 +28,7 @@ export type BroadcastEvent =
   | { type: 'end'; scores: Record<string, { name: string; score: number; correct: number }> }
   | { type: 'rematch_diff'; wordCategory: string }
   | { type: 'rematch_ready'; name: string }
+  | { type: 'lobby_ready'; id: string; ready: boolean }
   | { type: 'game_in_progress'; target: string }
+  | { type: 'player_leave'; id: string }
+  | { type: 'back_to_lobby' }

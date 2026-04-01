@@ -1,11 +1,21 @@
 'use client'
 import { useState } from 'react'
-import { IconX, IconMail, IconLock, IconUser } from '@tabler/icons-react'
+import { IconX, IconMail, IconLock, IconUser, IconArrowRight, IconInbox } from '@tabler/icons-react'
 import { authSignIn, authSignUp } from '@/lib/supabase'
 
 interface Props {
   initialMode: 'signin' | 'signup'
   onClose: () => void
+}
+
+function getEmailProviderUrl(email: string): string {
+  const domain = email.split('@')[1]?.toLowerCase() ?? ''
+  if (domain.includes('gmail')) return 'https://mail.google.com'
+  if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live') || domain.includes('msn')) return 'https://outlook.live.com'
+  if (domain.includes('yahoo')) return 'https://mail.yahoo.com'
+  if (domain.includes('icloud') || domain.includes('me.com') || domain.includes('mac.com')) return 'https://www.icloud.com/mail'
+  if (domain.includes('proton')) return 'https://mail.proton.me'
+  return `mailto:${email}`
 }
 
 export default function AuthModal({ initialMode, onClose }: Props) {
@@ -15,11 +25,11 @@ export default function AuthModal({ initialMode, onClose }: Props) {
   const [displayName, setDisplayName] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState('')
+  const [showConfirmScreen, setShowConfirmScreen] = useState(false)
+  const [confirmedEmail, setConfirmedEmail] = useState('')
 
   const handleSubmit = async () => {
     setErr('')
-    setSuccess('')
     if (!email.trim() || !password.trim()) { setErr('Please fill in all fields'); return }
     if (mode === 'signup' && !displayName.trim()) { setErr('Enter a display name'); return }
     if (password.length < 6) { setErr('Password must be at least 6 characters'); return }
@@ -28,9 +38,8 @@ export default function AuthModal({ initialMode, onClose }: Props) {
     try {
       if (mode === 'signup') {
         await authSignUp(email.trim(), password, displayName.trim())
-        setSuccess('Account created! Check your email to confirm, then sign in.')
-        setMode('signin')
-        setPassword('')
+        setConfirmedEmail(email.trim())
+        setShowConfirmScreen(true)
       } else {
         await authSignIn(email.trim(), password)
         onClose()
@@ -68,90 +77,146 @@ export default function AuthModal({ initialMode, onClose }: Props) {
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '380px' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-          <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)' }}>
-            {mode === 'signup' ? 'Create Account' : 'Sign In'}
-          </span>
-          <button onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color .12s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text5)')}>
-            <IconX size={18} stroke={2} />
-          </button>
-        </div>
 
-        {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '4px', background: 'var(--surface2)', borderRadius: '10px', padding: '4px', marginBottom: '22px' }}>
-          {(['signin', 'signup'] as const).map(m => (
-            <button key={m} onClick={() => { setMode(m); setErr(''); setSuccess('') }}
-              style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: mode === m ? 'var(--surface)' : 'transparent', color: mode === m ? 'var(--text)' : 'var(--text4)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.2)' : 'none' }}>
-              {m === 'signin' ? 'Sign In' : 'Sign Up'}
-            </button>
-          ))}
-        </div>
-
-        {/* Success */}
-        {success && (
-          <div style={{ background: '#052e16', border: '1px solid #16a34a', borderRadius: '8px', padding: '10px 12px', color: '#4ade80', fontSize: '12px', marginBottom: '16px', lineHeight: 1.5 }}>
-            {success}
-          </div>
-        )}
-
-        {/* Display name (signup only) */}
-        {mode === 'signup' && (
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Display Name</div>
-            <div style={{ position: 'relative' }}>
-              <IconUser size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
-              <input value={displayName} onChange={e => setDisplayName(e.target.value)}
-                placeholder="Your in-game name" maxLength={16} style={inputStyle}
-                onFocus={e => (e.target.style.borderColor = '#f59e0b')}
-                onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+        {/* ── Confirm Email Screen ── */}
+        {showConfirmScreen ? (
+          <>
+            {/* Close */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+              <button onClick={onClose}
+                style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color .12s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text5)')}>
+                <IconX size={18} stroke={2} />
+              </button>
             </div>
-          </div>
+
+            {/* Icon */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#f59e0b22', border: '1.5px solid #f59e0b55', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconInbox size={30} stroke={1.5} style={{ color: '#f59e0b' }} />
+              </div>
+            </div>
+
+            {/* Heading */}
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '8px' }}>Confirm your email</div>
+              <div style={{ fontSize: '13px', color: 'var(--text4)', lineHeight: 1.6 }}>
+                We sent a confirmation link to
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', marginTop: '2px', wordBreak: 'break-all' }}>
+                {confirmedEmail}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text4)', marginTop: '6px', lineHeight: 1.6 }}>
+                Click the link in that email to activate your account, then sign in.
+              </div>
+            </div>
+
+            {/* Open Email button */}
+            <a
+              href={getEmailProviderUrl(confirmedEmail)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', marginTop: '22px', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', textDecoration: 'none', boxSizing: 'border-box', transition: 'background .12s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#fbbf24')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#f59e0b')}
+            >
+              <IconMail size={17} stroke={2} />
+              Open Email App
+              <IconArrowRight size={15} stroke={2.5} />
+            </a>
+
+            {/* Back to sign in */}
+            <button
+              onClick={() => { setShowConfirmScreen(false); setMode('signin'); setPassword('') }}
+              style={{ width: '100%', marginTop: '10px', padding: '11px', borderRadius: '11px', background: 'transparent', border: '1.5px solid var(--border)', color: 'var(--text4)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text4)' }}
+            >
+              Back to Sign In
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+              <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)' }}>
+                {mode === 'signup' ? 'Create Account' : 'Sign In'}
+              </span>
+              <button onClick={onClose}
+                style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color .12s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text5)')}>
+                <IconX size={18} stroke={2} />
+              </button>
+            </div>
+
+            {/* Tab switcher */}
+            <div style={{ display: 'flex', gap: '4px', background: 'var(--surface2)', borderRadius: '10px', padding: '4px', marginBottom: '22px' }}>
+              {(['signin', 'signup'] as const).map(m => (
+                <button key={m} onClick={() => { setMode(m); setErr('') }}
+                  style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: mode === m ? 'var(--surface)' : 'transparent', color: mode === m ? 'var(--text)' : 'var(--text4)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.2)' : 'none' }}>
+                  {m === 'signin' ? 'Sign In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+
+            {/* Display name (signup only) */}
+            {mode === 'signup' && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Display Name</div>
+                <div style={{ position: 'relative' }}>
+                  <IconUser size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
+                  <input value={displayName} onChange={e => setDisplayName(e.target.value)}
+                    placeholder="Your in-game name" maxLength={16} style={inputStyle}
+                    onFocus={e => (e.target.style.borderColor = '#f59e0b')}
+                    onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                </div>
+              </div>
+            )}
+
+            {/* Email */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Email</div>
+              <div style={{ position: 'relative' }}>
+                <IconMail size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="you@example.com" style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = '#f59e0b')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Password</div>
+              <div style={{ position: 'relative' }}>
+                <IconLock size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
+                  style={inputStyle}
+                  onFocus={e => (e.target.style.borderColor = '#f59e0b')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+              </div>
+            </div>
+
+            {/* Error */}
+            {err && (
+              <div style={{ background: '#2d0a0a', border: '1px solid #f87171', borderRadius: '8px', padding: '10px 12px', color: '#f87171', fontSize: '12px', marginBottom: '16px' }}>
+                {err}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button onClick={handleSubmit} disabled={loading}
+              style={{ width: '100%', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', opacity: loading ? 0.7 : 1, transition: 'all .12s' }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#fbbf24' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#f59e0b' }}>
+              {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+            </button>
+          </>
         )}
-
-        {/* Email */}
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Email</div>
-          <div style={{ position: 'relative' }}>
-            <IconMail size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com" style={inputStyle}
-              onFocus={e => (e.target.style.borderColor = '#f59e0b')}
-              onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
-          </div>
-        </div>
-
-        {/* Password */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Password</div>
-          <div style={{ position: 'relative' }}>
-            <IconLock size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-              onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
-              style={inputStyle}
-              onFocus={e => (e.target.style.borderColor = '#f59e0b')}
-              onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
-          </div>
-        </div>
-
-        {/* Error */}
-        {err && (
-          <div style={{ background: '#2d0a0a', border: '1px solid #f87171', borderRadius: '8px', padding: '10px 12px', color: '#f87171', fontSize: '12px', marginBottom: '16px' }}>
-            {err}
-          </div>
-        )}
-
-        {/* Submit */}
-        <button onClick={handleSubmit} disabled={loading}
-          style={{ width: '100%', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', opacity: loading ? 0.7 : 1, transition: 'all .12s' }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#fbbf24' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#f59e0b' }}>
-          {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
-        </button>
       </div>
     </div>
   )

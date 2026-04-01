@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react'
 import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import { avatarColor } from '@/lib/words'
-import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword, IconFlag } from '@tabler/icons-react'
+import { IconChartBar, IconUser, IconSettings, IconUsers, IconSun, IconMoon, IconUserPlus, IconLogin, IconLogout, IconX, IconBolt, IconLock, IconHash, IconTrophy, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconSword, IconFlag, IconSparkles } from '@tabler/icons-react'
 import GalaxyIcon from '@/components/ui/GalaxyIcon'
 import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
 import StatsModal from '@/components/ui/StatsModal'
 import ProfileModal from '@/components/ui/ProfileModal'
 import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
+import UpdatesModal from '@/components/ui/UpdatesModal'
 
 const GAME_TYPES = [
   { id: 'default',  label: 'Random',  sub: 'Mixed vocabulary',       isRanked: false, Icon: IconDice5        },
@@ -52,6 +53,8 @@ export default function HomeScreen({
   const [showSettings, setShowSettings] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showUpdates, setShowUpdates] = useState(false)
+  const [soloDuration, setSoloDuration] = useState(60)
   const [sidebarData, setSidebarData] = useState<{ key: string; userId?: string; name: string; score: number }[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; userId?: string } | null>(null)
 
@@ -82,13 +85,19 @@ export default function HomeScreen({
 
   const effectiveName = authUser ? (userStats?.display_name || 'Player') : name.trim()
 
+  const fmtDuration = (s: number) => {
+    if (s < 60) return `${s}s`
+    const m = Math.floor(s / 60), r = s % 60
+    return r === 0 ? `${m} min` : `${m}:${String(r).padStart(2, '0')}`
+  }
+
   const handleLaunch = () => {
     if (!effectiveName) { setErr('Enter your name first'); return }
     if (!selectedType) { setErr('Pick a game type first'); return }
     setErr('')
     const gt = GAME_TYPES.find(g => g.id === selectedType) || GAME_TYPES[0]
     if (mode === 'gametype_solo') {
-      onStartSolo(effectiveName, gt.id, gt.isRanked)
+      onStartSolo(effectiveName, gt.id, gt.isRanked, soloDuration)
     } else {
       onCreateRoom(effectiveName, gt.id, gt.isRanked)
     }
@@ -107,7 +116,7 @@ export default function HomeScreen({
     onJoinRoom(effectiveName, code.trim())
   }
 
-  const ranked = sidebarData.slice(0, 15)
+  const ranked = sidebarData.slice(0, 10)
 
   return (
     <div className="setup-wrap" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '24px', background: 'var(--bg-page)' }}>
@@ -201,7 +210,7 @@ export default function HomeScreen({
                     <span style={{ fontSize: '11px', opacity: 0.7 }}>30s · random words · play now</span>
                   </div>
                 </button>
-                {/* Solo + Private Game side by side */}
+                {/* Solo + Private Casual side by side */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); setMode('gametype_solo') }}
                     style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', textAlign: 'center' }}
@@ -216,7 +225,7 @@ export default function HomeScreen({
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#f59e0b'; e.currentTarget.style.color = '#f59e0b'; e.currentTarget.style.background = 'var(--accent-pale)' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}><IconLock size={24} stroke={1.5} /></div>
-                    <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Private Game</strong>
+                    <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Private Casual</strong>
                     <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Create a room</span>
                   </button>
                 </div>
@@ -225,35 +234,52 @@ export default function HomeScreen({
 
             {/* ── Ranked ── */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text5)' }}>Ranked</div>
-                <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '20px', padding: '2px 8px', color: 'var(--text5)' }}>Coming Soon</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ padding: '16px', borderRadius: '14px', border: '1px dashed var(--border)', background: 'var(--surface2)', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'not-allowed', textAlign: 'center' }}>
-                  <IconTrophy size={24} stroke={1.5} style={{ color: 'var(--text5)' }} />
-                  <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text3)' }}>Public Ranked</strong>
-                  <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Global matchmaking</span>
+              <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text5)', marginBottom: '8px' }}>Ranked</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                {/* Public Ranked — big, red, locked */}
+                <div style={{ padding: '18px 16px', borderRadius: '14px', border: '1.5px solid #dc262655', background: '#dc262618', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg, transparent, transparent 8px, #dc262608 8px, #dc262608 16px)' }} />
+                  <IconTrophy size={26} stroke={2} style={{ color: '#dc2626', flexShrink: 0, position: 'relative' }} />
+                  <div style={{ textAlign: 'left', position: 'relative' }}>
+                    <strong style={{ display: 'block', fontSize: '15px', fontWeight: 800, color: '#dc2626' }}>Public Ranked</strong>
+                    <span style={{ fontSize: '11px', color: '#dc262699' }}>Global matchmaking · coming soon</span>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', background: '#dc262622', border: '1px solid #dc262644', borderRadius: '20px', padding: '3px 9px', color: '#dc2626', flexShrink: 0, position: 'relative' }}>
+                    Coming soon...
+                  </span>
                 </div>
-                <button
-                  onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); onCreateRoom(effectiveName, 'ranked', true) }}
-                  style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', textAlign: 'center' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#f59e0b'; e.currentTarget.style.color = '#f59e0b'; e.currentTarget.style.background = 'var(--accent-pale)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
-                  <IconLock size={24} stroke={1.5} />
-                  <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700 }}>Private Ranked</strong>
-                  <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Challenge friends</span>
-            </button>
+
+                {/* Solo Ranked + Private Ranked side by side */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); onStartSolo(effectiveName, 'ranked', true) }}
+                    style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', textAlign: 'center' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#dc262612' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}><IconUser size={24} stroke={1.5} /></div>
+                    <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Solo Ranked</strong>
+                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Practice for rank</span>
+                  </button>
+                  <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); onCreateRoom(effectiveName, 'ranked', true) }}
+                    style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', textAlign: 'center' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#dc262612' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}><IconLock size={24} stroke={1.5} /></div>
+                    <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Private Ranked</strong>
+                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Create a room</span>
+                  </button>
+                </div>
+
               </div>
             </div>
 
-            {/* ── Join a Game ── */}
+            {/* ── Join a Lobby ── */}
+            <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text5)', marginBottom: '8px' }}>Join a Lobby</div>
             <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); setMode('join') }}
               style={{ padding: '14px 16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text4)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#f59e0b'; e.currentTarget.style.color = '#f59e0b'; e.currentTarget.style.background = 'var(--accent-pale)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text4)'; e.currentTarget.style.background = 'var(--surface2)' }}>
-              <IconHash size={18} stroke={1.5} />
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>Join a Game</span>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>Join a Lobby</span>
             </button>
 
           </div>
@@ -266,13 +292,13 @@ export default function HomeScreen({
               <button onClick={() => { setMode('home'); setSelectedType(''); setErr('') }} style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', fontSize: '18px', padding: 0 }}>←</button>
               <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600 }}>
                 {mode === 'gametype_solo' ? <IconUser size={13} stroke={1.5} /> : <IconLock size={13} stroke={1.5} />}
-                {mode === 'gametype_solo' ? 'Solo' : 'Private Game'}
+                {mode === 'gametype_solo' ? 'Solo' : 'Private Casual'}
               </span>
             </div>
 
             <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '12px' }}>Game Type</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '16px' }}>
-              {GAME_TYPES.map(gt => {
+              {GAME_TYPES.filter(gt => gt.id !== 'ranked').map(gt => {
                 const isSelected = selectedType === gt.id
                 return (
                   <button key={gt.id} onClick={() => setSelectedType(gt.id)}
@@ -291,11 +317,28 @@ export default function HomeScreen({
               })}
             </div>
 
+            {/* Duration slider — solo only */}
+            {mode === 'gametype_solo' && (
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px 16px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600 }}>Game Duration</span>
+                  <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '13px', fontWeight: 700, color: '#f59e0b' }}>{fmtDuration(soloDuration)}</span>
+                </div>
+                <input type="range" min={15} max={120} step={15} value={soloDuration}
+                  onChange={e => setSoloDuration(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#f59e0b' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text6)' }}>15s</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text6)' }}>2 min</span>
+                </div>
+              </div>
+            )}
+
             <button onClick={handleLaunch}
               style={{ width: '100%', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'background .12s' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#fbbf24')}
               onMouseLeave={e => (e.currentTarget.style.background = '#f59e0b')}>
-              {mode === 'gametype_solo' ? 'Play Solo' : 'Create Room'}
+              {mode === 'gametype_solo' ? `Play Solo · ${fmtDuration(soloDuration)}` : 'Create Room'}
             </button>
           </>
         )}
@@ -303,7 +346,10 @@ export default function HomeScreen({
         {/* ── JOIN GAME ── */}
         {mode === 'join' && (
           <>
-            <button onClick={() => setMode('home')} style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', fontSize: '18px', marginBottom: '16px', padding: 0 }}>←</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <button onClick={() => setMode('home')} style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', fontSize: '18px', padding: 0 }}>←</button>
+              <span style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 700 }}>Join a Lobby</span>
+            </div>
 
             <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '8px' }}>Room Code</div>
             <input id="join-code-input"
@@ -316,7 +362,7 @@ export default function HomeScreen({
             />
 
             <button onClick={handleJoin} style={{ width: '100%', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
-              Join Game
+              Join Lobby
             </button>
           </>
         )}
@@ -356,13 +402,15 @@ export default function HomeScreen({
         {/* Action buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {(authUser ? [
-            { label: 'View Stats',   Icon: IconChartBar, action: () => setShowStats(true) },
-            { label: 'View Profile', Icon: IconUser,     action: () => setShowProfile(true) },
-            { label: 'Settings',     Icon: IconSettings, action: () => setShowSettings(true) },
+            { label: 'View Stats',   Icon: IconChartBar,   action: () => setShowStats(true) },
+            { label: 'View Profile', Icon: IconUser,       action: () => setShowProfile(true) },
+            { label: 'Settings',     Icon: IconSettings,   action: () => setShowSettings(true) },
+            { label: 'Updates',      Icon: IconSparkles,   action: () => setShowUpdates(true) },
           ] : [
-            { label: 'Sign Up',  Icon: IconUserPlus, action: () => onOpenAuth('signup') },
-            { label: 'Sign In',  Icon: IconLogin,    action: () => onOpenAuth('signin') },
-            { label: 'Settings', Icon: IconSettings, action: () => setShowSettings(true) },
+            { label: 'Sign Up',  Icon: IconUserPlus,  action: () => onOpenAuth('signup') },
+            { label: 'Sign In',  Icon: IconLogin,     action: () => onOpenAuth('signin') },
+            { label: 'Settings', Icon: IconSettings,  action: () => setShowSettings(true) },
+            { label: 'Updates',  Icon: IconSparkles,  action: () => setShowUpdates(true) },
           ]).map(item => (
             <button key={item.label} onClick={item.action}
               style={{ display: 'flex', alignItems: 'center', gap: '9px', width: '100%', background: 'transparent', border: 'none', borderRadius: '8px', padding: '8px 10px', color: item.label === 'Sign Out' ? 'var(--red)' : 'var(--text4)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter, sans-serif', textAlign: 'left', transition: 'all .12s' }}
@@ -473,6 +521,9 @@ export default function HomeScreen({
             onClose={() => setSelectedPlayer(null)}
           />
         )}
+
+        {/* Updates Modal */}
+        {showUpdates && <UpdatesModal onClose={() => setShowUpdates(false)} />}
     </div>
   )
 }

@@ -141,6 +141,9 @@ export default function Game() {
 
   // ── Results ──
   const [finalScores, setFinalScores] = useState<Record<string, { name: string; score: number; correct: number }>>({})
+  const [finalStreak, setFinalStreak] = useState(0)
+  const [finalLongestWord, setFinalLongestWord] = useState('')
+  const [finalAttempts, setFinalAttempts] = useState(0)
 
   // ── Countdown ──
   const [showCountdown, setShowCountdown] = useState(false)
@@ -166,6 +169,7 @@ export default function Game() {
   const amHostRef = useRef(false)
   const gameActiveRef = useRef(false)
   const feedCounter = useRef(0)
+  const screenRef = useRef<Screen>('home')
   // Stat-tracking refs (reset each game)
   const myMaxStreakRef = useRef(0)
   const myLongestWordRef = useRef('')
@@ -175,6 +179,7 @@ export default function Game() {
   const { speak, stop, prefetch } = useAzureTTS()
 
   // Keep refs in sync
+  useEffect(() => { screenRef.current = screen }, [screen])
   useEffect(() => { gameWordsRef.current = gameWords }, [gameWords])
   useEffect(() => { wordIndexRef.current = wordIndex }, [wordIndex])
   useEffect(() => { myScoreRef.current = myScore }, [myScore])
@@ -268,16 +273,39 @@ export default function Game() {
             streak: (d.streak as number) || 0,
             rematchReady: (d.rematchReady as boolean) || false,
             isHost: (d.isHost as boolean) || false,
+            lobbyReady: (d.lobbyReady as boolean) || false,
           }
           return updated
         })
         if (d.isHost) setHostId(pid)
         if (event === 'player_join') {
+          // When a new player joins, reset their own lobbyReady and broadcast current state
+          const myLobbyReady = amHostRef.current ? true : false
           pub('player_update', {
             id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
-            score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current
+            score: myScoreRef.current, correct: myCorrectRef.current, streak: myStreakRef.current,
+            lobbyReady: myLobbyReady,
           })
+          // Reset all non-host players' ready state when someone new joins (host excluded)
+          if (amHostRef.current) {
+            setPlayers(prev => {
+              const updated: Record<string, Player> = {}
+              for (const [k, v] of Object.entries(prev)) {
+                updated[k] = v.isHost ? v : { ...v, lobbyReady: false }
+              }
+              return updated
+            })
+          }
         }
+        break
+      }
+      case 'player_leave': {
+        const pid = (d.id as string) || d.from!
+        setPlayers(prev => {
+          const updated = { ...prev }
+          delete updated[pid]
+          return updated
+        })
         break
       }
       case 'game_in_progress': {
@@ -298,9 +326,11 @@ export default function Game() {
       case 'start': {
         const cat = (d.wordCategory as string) || 'default'
         const ranked = (d.isRanked as boolean) || false
+        const dur = (d.duration as number) || 60
         setWordCategory(cat)
         setIsRanked(ranked)
         setHostId(d.hostId as string)
+        gameDurationRef.current = dur
         const bank = getWordBank(cat, ranked)
         const words = seededShuffle(bank, d.seed as number)
         setGameWords(words)
@@ -309,7 +339,7 @@ export default function Game() {
           for (const [k, v] of Object.entries(prev)) updated[k] = { ...v, score: 0, correct: 0, rematchReady: false }
           return updated
         })
-        beginCountdown(() => startGame(words))
+        beginCountdown(() => startGame(words, dur))
         break
       }
       case 'answer': {
@@ -332,6 +362,33 @@ export default function Game() {
         setPlayers(prev => prev[pid] ? { ...prev, [pid]: { ...prev[pid], rematchReady: true } } : prev)
         break
       }
+      case 'lobby_ready': {
+        const pid = (d.id as string) || d.from!
+        setPlayers(prev => prev[pid] ? { ...prev, [pid]: { ...prev[pid], lobbyReady: (d.ready as boolean) } } : prev)
+        break
+      }
+      case 'category_change': {
+        // When host changes category, all non-host players become un-ready
+        setPlayers(prev => {
+          const updated: Record<string, Player> = {}
+          for (const [k, v] of Object.entries(prev)) {
+            updated[k] = v.isHost ? v : { ...v, lobbyReady: false }
+          }
+          return updated
+        })
+        break
+      }
+      case 'back_to_lobby': {
+        setPlayers(prev => {
+          const updated: Record<string, Player> = {}
+          for (const [k, v] of Object.entries(prev)) {
+            updated[k] = { ...v, score: 0, correct: 0, rematchReady: false, lobbyReady: false }
+          }
+          return updated
+        })
+        setScreen('waiting')
+        break
+      }
     }
   }, [myName, pub, addFeed])
 
@@ -343,17 +400,18 @@ export default function Game() {
       config: { broadcast: { self: false } }
     })
 
-    ;(['player_join','player_update','state','start','answer','end','rematch_diff','rematch_ready','game_in_progress'] as const).forEach(ev => {
+    ;(['player_join','player_update','state','start','answer','end','rematch_diff','rematch_ready','lobby_ready','category_change','player_leave','game_in_progress','back_to_lobby'] as const).forEach(ev => {
       channel.on('broadcast', { event: ev }, ({ payload }) => handleMsg(ev, payload as Record<string, unknown>))
     })
 
     channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED') {
         pub('player_join', {
           id: myId.current, name: myNameRef.current, isHost: amHostRef.current,
           score: 0, correct: 0, streak: 0
         })
         setScreen('waiting')
+        window.history.pushState({ appScreen: 'waiting' }, '')
         if (amHostRef.current) {
           pub('state', { wordCategory: wordCategoryRef.current, hostId: myId.current })
           const url = new URL(window.location.href)
@@ -379,7 +437,7 @@ export default function Game() {
     setRoomCode(code)
     setAmHost(true)
     amHostRef.current = true
-    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: true }
+    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: true, lobbyReady: true }
     setPlayers({ [myId.current]: me })
     setHostId(myId.current)
     joinChannel(code)
@@ -392,7 +450,7 @@ export default function Game() {
     setRoomCode(code.toUpperCase())
     setAmHost(false)
     amHostRef.current = false
-    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: false }
+    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: false, lobbyReady: false }
     setPlayers({ [myId.current]: me })
     joinChannel(code)
   }, [joinChannel])
@@ -401,11 +459,15 @@ export default function Game() {
     stop()
     if (timerRef.current) clearInterval(timerRef.current)
     if (pendingResultsRef.current) { clearTimeout(pendingResultsRef.current); pendingResultsRef.current = null }
+    pub('player_leave', { id: myId.current })
     if (channelRef.current) { supa.removeChannel(channelRef.current); channelRef.current = null }
     setPlayers({})
     setGameActive(false)
+    // Strip ?code= from the URL so HomeScreen doesn't auto-open the join screen
+    const cleanUrl = window.location.pathname
+    window.history.replaceState(null, '', cleanUrl)
     setScreen('home')
-  }, [stop])
+  }, [stop, pub])
 
   const leaveGame = useCallback(() => {
     stop()
@@ -420,6 +482,17 @@ export default function Game() {
     setMyStreak(0); myStreakRef.current = 0
     setScreen('home')
   }, [stop])
+
+  // ── Browser back button → always go home, never lobby ──
+  useEffect(() => {
+    const handlePopState = () => {
+      const s = screenRef.current
+      if (s === 'game') leaveGame()
+      else if (s === 'waiting') leaveRoom()
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [leaveGame, leaveRoom])
 
   // ── Countdown ──
   const beginCountdown = useCallback((cb: () => void) => {
@@ -449,10 +522,45 @@ export default function Game() {
     const bank = getWordBank(wordCategoryRef.current, isRankedRef.current)
     const words = seededShuffle(bank, seed)
     setGameWords(words)
-    pub('start', { seed, wordCategory: wordCategoryRef.current, isRanked: isRankedRef.current, hostId: myId.current })
-    beginCountdown(() => startGame(words))
+    pub('start', { seed, wordCategory: wordCategoryRef.current, isRanked: isRankedRef.current, hostId: myId.current, duration: isRankedRef.current ? 60 : gameDurationRef.current })
+    beginCountdown(() => startGame(words, isRankedRef.current ? 60 : gameDurationRef.current))
   }, [pub, beginCountdown])
 
+  const backToLobby = useCallback(() => {
+    // For solo: just restart the game directly
+    if (isSoloRef.current) {
+      hostStart()
+      return
+    }
+    // Reset own scores
+    myScoreRef.current = 0
+    myCorrectRef.current = 0
+    myStreakRef.current = 0
+    setMyScore(0)
+    setMyCorrect(0)
+    setMyStreak(0)
+    // Start the lobby with only yourself — other players arrive via player_join as they press Play Again
+    const me: Player = {
+      id: myId.current,
+      name: myNameRef.current,
+      score: 0, correct: 0, streak: 0,
+      rematchReady: false,
+      isHost: amHostRef.current,
+      lobbyReady: amHostRef.current,
+    }
+    setPlayers({ [myId.current]: me })
+    // Broadcast presence so anyone already on the waiting screen sees you arrive
+    pub('player_join', {
+      id: myId.current,
+      name: myNameRef.current,
+      isHost: amHostRef.current,
+      score: 0, correct: 0, streak: 0,
+      lobbyReady: amHostRef.current,
+    })
+    setScreen('waiting')
+  }, [pub, hostStart])
+
+  const [gameDuration, setGameDuration] = useState(60)
   const gameDurationRef = useRef(60)
 
   const startGame = useCallback((words: Word[], duration?: number) => {
@@ -465,6 +573,7 @@ export default function Game() {
     setRecentWords([])
     setGameActive(true)
     setScreen('game')
+    window.history.replaceState({ appScreen: 'game' }, '')
     // Reset per-game stat trackers
     myMaxStreakRef.current = 0
     myLongestWordRef.current = ''
@@ -493,6 +602,9 @@ export default function Game() {
             if (pendingResultsRef.current) clearTimeout(pendingResultsRef.current)
             pendingResultsRef.current = setTimeout(() => {
               pendingResultsRef.current = null
+              setFinalStreak(myMaxStreakRef.current)
+              setFinalLongestWord(myLongestWordRef.current)
+              setFinalAttempts(myAttemptsRef.current)
               setPlayers(prev => {
                 const s: Record<string, { name: string; score: number; correct: number }> = {}
                 for (const p of Object.values(prev)) s[p.id] = { name: p.name, score: p.score, correct: p.correct }
@@ -525,17 +637,20 @@ export default function Game() {
     isRankedRef.current = isRankedVal
     setAmHost(true)
     amHostRef.current = true
-    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: true }
+    const me: Player = { id: myId.current, name, score: 0, correct: 0, streak: 0, rematchReady: false, isHost: true, lobbyReady: true }
     setPlayers({ [myId.current]: me })
     setHostId(myId.current)
     const bank = getWordBank(category, isRankedVal)
     const seed = Math.floor(Math.random() * 2147483647)
     const words = seededShuffle(bank, seed)
     setGameWords(words)
-    beginCountdown(() => startGame(words, duration))
+    beginCountdown(() => startGame(words, isRankedVal ? 60 : duration))
   }, [beginCountdown, startGame])
 
   const finishGame = useCallback(() => {
+    setFinalStreak(myMaxStreakRef.current)
+    setFinalLongestWord(myLongestWordRef.current)
+    setFinalAttempts(myAttemptsRef.current)
     let computedScores: Record<string, { name: string; score: number; correct: number }> = {}
     setPlayers(prev => {
       const s: Record<string, { name: string; score: number; correct: number }> = {}
@@ -558,6 +673,9 @@ export default function Game() {
     if (timerRef.current) clearInterval(timerRef.current)
     setGameActive(false)
     stop()
+    setFinalStreak(myMaxStreakRef.current)
+    setFinalLongestWord(myLongestWordRef.current)
+    setFinalAttempts(myAttemptsRef.current)
     // Always use local refs for own score — host's copy can be stale due to network lag
     const correctedScores = {
       ...scores,
@@ -628,6 +746,15 @@ export default function Game() {
     if (next && wordCategoryRef.current !== 'flags') setTimeout(() => speak(next.w, voiceSpeed), 200)
   }, [stop, speak, voiceSpeed])
 
+  // ── Lobby ready ──
+  const handleLobbyReady = useCallback((ready: boolean) => {
+    setPlayers(prev => prev[myId.current]
+      ? { ...prev, [myId.current]: { ...prev[myId.current], lobbyReady: ready } }
+      : prev
+    )
+    pub('lobby_ready', { id: myId.current, ready })
+  }, [pub])
+
   // ── Leaderboard ──
   const openLeaderboard = useCallback(() => {
     setShowLeaderboard(true)
@@ -679,7 +806,22 @@ export default function Game() {
           isRanked={isRanked}
           onStart={hostStart}
           onLeave={leaveRoom}
-          onCategoryChange={(cat) => { setWordCategory(cat); pub('rematch_diff', { wordCategory: cat }) }}
+          onCategoryChange={(cat) => {
+            setWordCategory(cat)
+            pub('rematch_diff', { wordCategory: cat })
+            // Reset everyone's ready state when category changes
+            pub('category_change', {})
+            setPlayers(prev => {
+              const updated: Record<string, Player> = {}
+              for (const [k, v] of Object.entries(prev)) {
+                updated[k] = v.isHost ? v : { ...v, lobbyReady: false }
+              }
+              return updated
+            })
+          }}
+          onLobbyReady={handleLobbyReady}
+          gameDuration={gameDuration}
+          onGameDurationChange={(d) => { setGameDuration(d); gameDurationRef.current = d }}
           myName={myName}
           onOpenLeaderboard={openLeaderboard}
           theme={theme}
@@ -719,19 +861,13 @@ export default function Game() {
           scores={finalScores}
           myId={myId.current}
           myName={myName}
-          players={players}
-          hostId={hostId}
-          amHost={amHost}
           isRanked={isRanked}
-          wordCategory={wordCategory}
-          onHostStart={hostStart}
+          myStreak={finalStreak}
+          myLongestWord={finalLongestWord}
+          myAttempts={finalAttempts}
+          onPlayAgain={backToLobby}
           onLeave={leaveRoom}
           onOpenLeaderboard={openLeaderboard}
-          onCategoryChange={(cat) => { setWordCategory(cat); pub('rematch_diff', { wordCategory: cat }) }}
-          onRematchReady={() => {
-            setPlayers(prev => prev[myId.current] ? { ...prev, [myId.current]: { ...prev[myId.current], rematchReady: true } } : prev)
-            pub('rematch_ready', { name: myNameRef.current })
-          }}
         />
       )}
 

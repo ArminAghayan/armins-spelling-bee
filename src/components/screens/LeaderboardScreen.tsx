@@ -119,14 +119,16 @@ export default function LeaderboardScreen({ myName, onBack }: Props) {
         {/* List */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text5)', fontSize: '13px' }}>
-              Loading...
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', gap: '12px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: '#f59e0b', animation: 'leaderboard-spin 0.8s linear infinite' }} />
+              <span style={{ fontSize: '12px', color: 'var(--text5)', fontFamily: 'Space Mono, monospace' }}>Loading scores...</span>
+              <style>{`@keyframes leaderboard-spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : entries.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text5)', fontFamily: 'Space Mono, monospace', fontSize: '12px' }}>
               No scores yet — play a ranked game!
             </div>
-          ) : entries.map((e, i) => {
+          ) : entries.slice(0, 50).map((e, i) => {
             const bg = avatarColor(e.name)
             const isMe = e.name === myName
             const rankColor = i === 0 ? '#f59e0b' : i === 1 ? 'var(--text2)' : i === 2 ? '#cd7f32' : 'var(--text5)'

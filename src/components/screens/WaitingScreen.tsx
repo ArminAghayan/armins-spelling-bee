@@ -3,16 +3,26 @@ import { useState, useEffect } from 'react'
 import { avatarColor } from '@/lib/words'
 import { fetchLeaderboard, type HofScore } from '@/lib/supabase'
 import type { Player } from '@/lib/types'
-import { IconChartBar, IconUser, IconSettings, IconMoon, IconSun, IconUserPlus, IconLogin, IconLogout, IconX } from '@tabler/icons-react'
+import { IconChartBar, IconUser, IconSettings, IconMoon, IconSun, IconUserPlus, IconLogin, IconLogout, IconX, IconDice5, IconStars, IconBuilding, IconMap, IconPaw, IconMovie, IconBuildingStore, IconFlag, IconSword, IconCheck, IconSparkles } from '@tabler/icons-react'
 import GalaxyIcon from '@/components/ui/GalaxyIcon'
 import type { User } from '@supabase/supabase-js'
 import type { UserStats } from '@/lib/supabase'
 import StatsModal from '@/components/ui/StatsModal'
 import ProfileModal from '@/components/ui/ProfileModal'
 import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
+import UpdatesModal from '@/components/ui/UpdatesModal'
 
-const CATEGORIES = ['default','expert','cities','places','animals','movies','brands','ranked']
-const CAT_LABEL: Record<string, string> = { default:'Random',expert:'Expert',cities:'Cities',places:'Places',animals:'Animals',movies:'Movies',brands:'Brands',ranked:'Ranked' }
+const GAME_TYPES = [
+  { id: 'default',  label: 'Random',  sub: 'Mixed vocabulary',      Icon: IconDice5         },
+  { id: 'expert',   label: 'Expert',  sub: 'Hard 12+ letters',       Icon: IconStars         },
+  { id: 'cities',   label: 'Cities',  sub: 'World cities',           Icon: IconBuilding      },
+  { id: 'places',   label: 'Places',  sub: 'World geography',        Icon: IconMap           },
+  { id: 'animals',  label: 'Animals', sub: 'Flora and fauna',        Icon: IconPaw           },
+  { id: 'movies',   label: 'Movies',  sub: 'Film titles & terms',    Icon: IconMovie         },
+  { id: 'brands',   label: 'Brands',  sub: 'Companies & logos',      Icon: IconBuildingStore },
+  { id: 'flags',    label: 'Flags',   sub: 'Name the country',        Icon: IconFlag          },
+  { id: 'ranked',   label: 'Ranked',  sub: 'Saves to leaderboard',   Icon: IconSword         },
+]
 
 interface Props {
   players: Record<string, Player>
@@ -25,6 +35,9 @@ interface Props {
   onStart: () => void
   onLeave: () => void
   onCategoryChange: (c: string) => void
+  onLobbyReady: (ready: boolean) => void
+  gameDuration: number
+  onGameDurationChange: (d: number) => void
   myName: string
   onOpenLeaderboard: () => void
   theme: 'dark' | 'light'
@@ -41,7 +54,8 @@ interface Props {
 
 export default function WaitingScreen({
   players, myId, hostId, roomCode, amHost, wordCategory, isRanked,
-  onStart, onLeave, onCategoryChange,
+  onStart, onLeave, onCategoryChange, onLobbyReady,
+  gameDuration, onGameDurationChange,
   myName, onOpenLeaderboard,
   theme, onToggleTheme, voiceSpeed, onVoiceSpeedChange, onTestVoice,
   authUser, userStats, onOpenAuth, onSignOut, onStatsUpdated,
@@ -49,6 +63,8 @@ export default function WaitingScreen({
   const [showSettings, setShowSettings] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showUpdates, setShowUpdates] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [sidebarData, setSidebarData] = useState<HofScore[]>([])
   const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; userId?: string } | null>(null)
 
@@ -57,11 +73,13 @@ export default function WaitingScreen({
   const copyCode = () => {
     const url = `${window.location.origin}${window.location.pathname}?code=${roomCode}`
     navigator.clipboard?.writeText(url).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const best: Record<string, HofScore> = {}
   sidebarData.forEach(e => { if (!best[e.name] || e.score > best[e.name].score) best[e.name] = e })
-  const ranked = Object.values(best).sort((a, b) => b.score - a.score).slice(0, 15)
+  const ranked = Object.values(best).sort((a, b) => b.score - a.score).slice(0, 10)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '0' }}>
@@ -114,58 +132,140 @@ export default function WaitingScreen({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <button onClick={onLeave} style={{ background: 'none', border: 'none', color: 'var(--text5)', cursor: 'pointer', fontSize: '18px', padding: 0 }}>←</button>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Waiting Room</h2>
-            <span style={{ fontSize: '10px', padding: '3px 9px', borderRadius: '20px', fontWeight: 600, background: 'var(--accent-pale)', color: '#f59e0b', border: '1px solid #78350f' }}>{CAT_LABEL[wordCategory] || 'Default'}{isRanked && wordCategory !== 'ranked' ? ' · Ranked' : ''}</span>
+            <span style={{ fontSize: '10px', padding: '3px 9px', borderRadius: '20px', fontWeight: 600, background: 'var(--accent-pale)', color: '#f59e0b', border: '1px solid #78350f' }}>{GAME_TYPES.find(g => g.id === wordCategory)?.label ?? 'Default'}{isRanked && wordCategory !== 'ranked' ? ' · Ranked' : ''}</span>
           </div>
 
           {/* Room code */}
-          <div onClick={copyCode} style={{ textAlign: 'center', background: 'var(--surface)', border: '1.5px dashed var(--border-strong)', borderRadius: '12px', padding: '20px', marginBottom: '16px', cursor: 'pointer' }}>
+          <div onClick={copyCode} style={{ textAlign: 'center', background: copied ? '#f59e0b0f' : 'var(--surface)', border: `1.5px dashed ${copied ? '#f59e0b' : 'var(--border-strong)'}`, borderRadius: '12px', padding: '20px', marginBottom: '16px', cursor: 'pointer', transition: 'all .2s' }}>
             <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>Share this code</div>
             <div style={{ fontSize: '36px', fontWeight: 700, color: '#f59e0b', letterSpacing: '12px', fontFamily: 'Space Mono, monospace' }}>{roomCode}</div>
-            <div style={{ fontSize: '10px', color: 'var(--text6)', marginTop: '6px' }}>tap to copy link</div>
+            <div style={{ fontSize: '10px', color: copied ? '#f59e0b' : 'var(--text6)', marginTop: '6px', fontWeight: copied ? 600 : 400, transition: 'all .2s' }}>
+              {copied ? '✓ Link copied!' : 'tap to copy link'}
+            </div>
           </div>
 
           {/* Players */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>Players <span style={{ color: 'var(--text5)', fontSize: '13px' }}>({Object.keys(players).length})</span></span>
-            </div>
-            {Object.values(players).map(p => {
-              const bg = avatarColor(p.name)
-              return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'var(--surface2)', borderRadius: '9px', marginBottom: '7px', border: `1px solid ${p.id === myId ? '#f59e0b' : 'var(--border)'}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
-                    <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{p.name}{p.id === myId && <span style={{ fontSize: '10px', color: 'var(--text5)', marginLeft: '4px' }}>(you)</span>}</span>
+          {(() => {
+            const playerList = Object.values(players)
+            const nonHostPlayers = playerList.filter(p => !p.isHost)
+            const allReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.lobbyReady)
+            const readyCount = nonHostPlayers.filter(p => p.lobbyReady).length
+            const myPlayer = players[myId]
+            const myLobbyReady = myPlayer?.lobbyReady ?? false
+
+            return (
+              <>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>Players <span style={{ color: 'var(--text5)', fontSize: '13px' }}>({playerList.length})</span></span>
+                    {nonHostPlayers.length > 0 && (
+                      <span style={{ fontSize: '11px', color: allReady ? '#4ade80' : 'var(--text5)', fontWeight: 600 }}>
+                        {readyCount}/{nonHostPlayers.length} ready
+                      </span>
+                    )}
                   </div>
-                  <span style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '20px', fontFamily: 'Space Mono, monospace', fontWeight: 700, background: p.id === hostId ? '#f59e0b' : '#f59e0b22', color: p.id === hostId ? '#000' : '#f59e0b' }}>
-                    {p.id === hostId ? 'HOST' : 'READY'}
-                  </span>
+                  {playerList.map(p => {
+                    const bg = avatarColor(p.name)
+                    const isHost = p.id === hostId
+                    const isReady = isHost || p.lobbyReady
+                    return (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'var(--surface2)', borderRadius: '9px', marginBottom: '7px', border: `1px solid ${p.id === myId ? '#f59e0b' : isReady ? '#16a34a44' : 'var(--border)'}`, transition: 'border-color .2s' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: bg + '20', color: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{p.name?.[0]?.toUpperCase() ?? '?'}</div>
+                          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>{p.name}{p.id === myId && <span style={{ fontSize: '10px', color: 'var(--text5)', marginLeft: '4px' }}>(you)</span>}</span>
+                        </div>
+                        <span style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '20px', fontFamily: 'Space Mono, monospace', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', background: isHost ? '#f59e0b' : isReady ? '#16a34a22' : 'var(--surface)', color: isHost ? '#000' : isReady ? '#4ade80' : 'var(--text5)', border: isHost ? 'none' : isReady ? '1px solid #16a34a44' : '1px solid var(--border)' }}>
+                          {isHost ? 'HOST' : isReady ? <><IconCheck size={10} stroke={3} />READY</> : 'NOT READY'}
+                        </span>
+                      </div>
+                    )
+                  })}
+
+                  {/* Ready button for non-host players */}
+                  {!amHost && (
+                    <button
+                      onClick={() => onLobbyReady(!myLobbyReady)}
+                      style={{ width: '100%', marginTop: '8px', padding: '12px', borderRadius: '10px', border: `1.5px solid ${myLobbyReady ? '#16a34a' : '#f59e0b'}`, background: myLobbyReady ? '#16a34a22' : '#f59e0b', color: myLobbyReady ? '#4ade80' : '#000', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+                      onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+                    >
+                      {myLobbyReady ? <><IconCheck size={16} stroke={2.5} /> Ready!</> : 'Ready up!'}
+                    </button>
+                  )}
+
+                  {!amHost && myLobbyReady && (
+                    <div style={{ textAlign: 'center', marginTop: '10px', color: 'var(--text5)', fontSize: '12px' }}>
+                      Waiting for host to start...
+                    </div>
+                  )}
                 </div>
-              )
-            })}
-            {!amHost && <div style={{ textAlign: 'center', padding: '10px', color: 'var(--text5)', fontSize: '12px' }}>Waiting for host to start...</div>}
-          </div>
+              </>
+            )
+          })()}
 
           {/* Category picker + start for host */}
-          {amHost && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '10px' }}>Game Type</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '14px' }}>
-                {CATEGORIES.map(c => (
-                  <button key={c} onClick={() => onCategoryChange(c)}
-                    style={{ padding: '8px', borderRadius: '8px', border: `1px solid ${wordCategory === c ? '#f59e0b' : 'var(--border)'}`, background: wordCategory === c ? 'var(--accent-pale)' : 'var(--surface2)', color: wordCategory === c ? '#f59e0b' : 'var(--text3)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}>
-                    {CAT_LABEL[c]}
-                  </button>
-                ))}
+          {amHost && (() => {
+            const nonHostPlayers = Object.values(players).filter(p => !p.isHost)
+            const allReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.lobbyReady)
+            const notReadyCount = nonHostPlayers.filter(p => !p.lobbyReady).length
+            const fmtDur = (s: number) => {
+              if (s < 60) return `${s}s`
+              const m = Math.floor(s / 60), r = s % 60
+              return r === 0 ? `${m} min` : `${m}:${String(r).padStart(2, '0')}`
+            }
+            return (
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px' }}>
+                {!isRanked && (
+                  <>
+                    <div style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600, marginBottom: '10px' }}>Game Type</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '14px' }}>
+                      {GAME_TYPES.filter(gt => gt.id !== 'ranked').map(gt => {
+                        const isSelected = wordCategory === gt.id
+                        return (
+                          <button key={gt.id} onClick={() => onCategoryChange(gt.id)}
+                            style={{ padding: '11px 10px', borderRadius: '10px', border: `1.5px solid ${isSelected ? '#f59e0b' : 'var(--border)'}`, background: isSelected ? 'var(--accent-pale)' : 'var(--surface2)', color: isSelected ? '#f59e0b' : 'var(--text3)', cursor: 'pointer', textAlign: 'left', fontFamily: 'Inter, sans-serif', transition: 'all .15s', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#f59e0b'; e.currentTarget.style.color = '#f59e0b'; e.currentTarget.style.background = 'var(--accent-pale)' } }}
+                            onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' } }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isSelected ? '#f59e0b22' : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <gt.Icon size={15} stroke={1.5} />
+                            </div>
+                            <div>
+                              <strong style={{ display: 'block', fontSize: '12px', fontWeight: 700, lineHeight: 1.2 }}>{gt.label}</strong>
+                              <span style={{ fontSize: '10px', color: isSelected ? '#d97706' : 'var(--text5)', lineHeight: 1.3 }}>{gt.sub}</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Duration slider */}
+                    <div style={{ background: 'var(--surface2)', borderRadius: '10px', padding: '12px 14px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text5)', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 600 }}>Duration</span>
+                        <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '13px', fontWeight: 700, color: '#f59e0b' }}>{fmtDur(gameDuration)}</span>
+                      </div>
+                      <input type="range" min={15} max={120} step={15} value={gameDuration}
+                        onChange={e => onGameDurationChange(Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#f59e0b' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text6)' }}>15s</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text6)' }}>2 min</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <button onClick={allReady ? onStart : undefined} disabled={!allReady}
+                  style={{ width: '100%', padding: '13px', borderRadius: '11px', background: allReady ? '#f59e0b' : 'var(--surface2)', color: allReady ? '#000' : 'var(--text5)', fontSize: '15px', fontWeight: 700, border: `1.5px solid ${allReady ? '#f59e0b' : 'var(--border)'}`, cursor: allReady ? 'pointer' : 'not-allowed', fontFamily: 'Inter, sans-serif', transition: 'all .15s' }}
+                  onMouseEnter={e => { if (allReady) e.currentTarget.style.background = '#fbbf24' }}
+                  onMouseLeave={e => { if (allReady) e.currentTarget.style.background = '#f59e0b' }}>
+                  {allReady
+                    ? `Start Game · ${isRanked ? '1 min' : fmtDur(gameDuration)}`
+                    : `Waiting for ${notReadyCount} player${notReadyCount !== 1 ? 's' : ''}...`}
+                </button>
               </div>
-              <button onClick={onStart}
-                style={{ width: '100%', padding: '13px', borderRadius: '11px', background: '#f59e0b', color: '#000', fontSize: '15px', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'background .12s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#fbbf24')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#f59e0b')}>
-                Start Game
-              </button>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         {/* Right: Account box (desktop only) */}
@@ -201,13 +301,15 @@ export default function WaitingScreen({
           {/* Action buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {(authUser ? [
-              { label: 'View Stats',   Icon: IconChartBar, action: () => setShowStats(true) },
-              { label: 'View Profile', Icon: IconUser,     action: () => setShowProfile(true) },
-              { label: 'Settings',     Icon: IconSettings, action: () => setShowSettings(true) },
+              { label: 'View Stats',   Icon: IconChartBar,  action: () => setShowStats(true) },
+              { label: 'View Profile', Icon: IconUser,      action: () => setShowProfile(true) },
+              { label: 'Settings',     Icon: IconSettings,  action: () => setShowSettings(true) },
+              { label: 'Updates',      Icon: IconSparkles,  action: () => setShowUpdates(true) },
             ] : [
-              { label: 'Sign Up',  Icon: IconUserPlus, action: () => onOpenAuth('signup') },
-              { label: 'Sign In',  Icon: IconLogin,    action: () => onOpenAuth('signin') },
-              { label: 'Settings', Icon: IconSettings, action: () => setShowSettings(true) },
+              { label: 'Sign Up',  Icon: IconUserPlus,  action: () => onOpenAuth('signup') },
+              { label: 'Sign In',  Icon: IconLogin,     action: () => onOpenAuth('signin') },
+              { label: 'Settings', Icon: IconSettings,  action: () => setShowSettings(true) },
+              { label: 'Updates',  Icon: IconSparkles,  action: () => setShowUpdates(true) },
             ]).map(item => (
               <button key={item.label} onClick={item.action}
                 style={{ display: 'flex', alignItems: 'center', gap: '9px', width: '100%', background: 'transparent', border: 'none', borderRadius: '8px', padding: '8px 10px', color: item.label === 'Sign Out' ? 'var(--red)' : 'var(--text4)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'Inter, sans-serif', textAlign: 'left', transition: 'all .12s' }}
@@ -319,6 +421,9 @@ export default function WaitingScreen({
           onClose={() => setSelectedPlayer(null)}
         />
       )}
+
+      {/* Updates Modal */}
+      {showUpdates && <UpdatesModal onClose={() => setShowUpdates(false)} />}
     </div>
   )
 }
