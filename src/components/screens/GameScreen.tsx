@@ -84,14 +84,14 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
   }, [handleSubmit, onSkip])
 
   const borderColor = inputState === 'ok' ? 'var(--green)' : inputState === 'no' ? 'var(--red)' : 'var(--border)'
-  const bgColor = inputState === 'ok' ? '#052e16' : inputState === 'no' ? 'var(--red-pale)' : 'var(--surface2)'
+  const bgColor = inputState === 'ok' ? 'var(--accent-pale)' : inputState === 'no' ? 'var(--red-pale)' : 'var(--surface2)'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-page)' }}>
 
       {/* ── Desktop Live Leaderboard Sidebar ── */}
       <div style={{
-        width: '220px', flexShrink: 0, background: 'var(--bg-darker)', borderRight: '1px solid var(--surface2)',
+        width: '220px', flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)',
         padding: '24px 16px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
         flexDirection: 'column', gap: 0,
         display: 'none',
@@ -114,7 +114,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '9px 10px', borderRadius: '10px', marginBottom: '5px',
-                background: 'var(--surface)', border: `1px solid ${isMe ? '#f59e0b' : 'var(--surface2)'}`,
+                background: 'var(--surface2)', border: `1px solid ${isMe ? '#f59e0b' : 'var(--border)'}`,
                 transition: 'background .3s',
                 position: 'relative', overflow: 'hidden',
                 animation: anim === 'rank-up' ? 'rankUp .5s ease forwards' : anim === 'rank-down' ? 'rankDown .4s ease' : undefined,
@@ -136,7 +136,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
         })}
 
         {/* Activity feed */}
-        <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--surface2)' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
           {feedItems.slice(0, 4).map(f => (
             <div key={f.id} style={{ fontSize: '10px', fontFamily: 'Space Mono, monospace', padding: '3px 0', color: f.type === 'ok' ? '#f59e0b' : 'var(--red)', animation: 'feedIn .25s ease' }}>
               {f.msg}
@@ -193,7 +193,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
           const nextBonus = Math.max(0, myStreak - 1)
           const hasBonus = myStreak >= 2
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: hasBonus ? 'var(--accent-pale)' : 'var(--surface)', borderRadius: '9px', marginBottom: '14px', border: `1px solid ${hasBonus ? '#78350f' : 'var(--surface2)'}`, transition: 'all .2s' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', background: hasBonus ? 'var(--accent-pale)' : 'var(--surface)', borderRadius: '9px', marginBottom: '14px', border: `1px solid ${hasBonus ? 'var(--accent)' : 'var(--border)'}`, transition: 'all .2s' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '14px' }}>{myStreak >= 3 ? '🔥' : '💡'}</span>
                 <span style={{ color: hasBonus ? '#f59e0b' : 'var(--text5)', fontSize: '12px', fontWeight: 600 }}>
@@ -201,7 +201,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
                 </span>
               </div>
               {hasBonus ? (
-                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: '#78350f44', borderRadius: '6px', padding: '2px 8px' }}>
+                <span style={{ fontFamily: 'Space Mono, monospace', fontSize: '11px', fontWeight: 700, color: '#f59e0b', background: 'var(--accent-pale)', borderRadius: '6px', padding: '2px 8px' }}>
                   +{nextBonus} bonus next
                 </span>
               ) : (
@@ -259,7 +259,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: 1 }}>
             {recentWords.map((r, i) => (
-              <span key={i} style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontFamily: 'Space Mono, monospace', animation: 'pop .2s ease', background: r.ok ? 'var(--accent-pale)' : 'var(--red-pale)', color: r.ok ? '#f59e0b' : 'var(--red)', border: `1px solid ${r.ok ? '#78350f' : 'var(--red)'}`, textDecoration: r.ok ? 'none' : 'line-through' }}>
+              <span key={i} style={{ padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontFamily: 'Space Mono, monospace', animation: 'pop .2s ease', background: r.ok ? 'var(--accent-pale)' : 'var(--red-pale)', color: r.ok ? '#f59e0b' : 'var(--red)', border: `1px solid ${r.ok ? 'var(--accent)' : 'var(--red)'}`, textDecoration: r.ok ? 'none' : 'line-through' }}>
                 {r.word}
               </span>
             ))}

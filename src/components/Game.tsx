@@ -7,7 +7,7 @@ import {
   getUserStats, upsertUserStats, authSignOut, type UserStats,
 } from '@/lib/supabase'
 import { getWordBank, seededShuffle, genCode, avatarColor, type Word } from '@/lib/words'
-import { generateBotNames, getRandomBotProfile, shouldBotAnswerCorrectly, getBotThinkTime } from '@/lib/bots'
+import { generateBotNames, getRandomBotProfile, shouldBotAnswerCorrectly, getBotThinkTime, getBotProfileForUser } from '@/lib/bots'
 import { useAzureTTS } from '@/hooks/useAzureTTS'
 import type { Screen, Player, BroadcastEvent } from '@/lib/types'
 import HomeScreen from '@/components/screens/HomeScreen'
@@ -678,8 +678,8 @@ export default function Game() {
     setAmHost(true)
     amHostRef.current = true
 
-    // Create player and 3-4 bots
-    const botCount = 3 + Math.floor(Math.random() * 2) // 3-4 bots
+    // Create player and 4 bots (5 total players)
+    const botCount = 4
     const botNames = generateBotNames(botCount)
     
     const allPlayers: Record<string, Player> = {}
@@ -696,16 +696,18 @@ export default function Game() {
       lobbyReady: true 
     }
 
-    // Add bots
+    // Add bots with difficulty based on user stats (only for logged-in users)
     botNames.forEach((botName, index) => {
       const botId = `bot_${index + 1}`
-      const botProfile = {
-        name: 'Intermediate Bot',
-        accuracy: 0.65, // 65% accuracy
-        minThinkTime: 2000, // 2-5 seconds to answer
-        maxThinkTime: 5000,
-        streakBonus: 0.1
-      }
+      const botProfile = authUserRef.current 
+        ? getBotProfileForUser(userStats) 
+        : {
+            name: 'Intermediate Bot',
+            accuracy: 0.65, // 65% accuracy
+            minThinkTime: 2000, // 2-5 seconds to answer
+            maxThinkTime: 5000,
+            streakBonus: 0.1
+          }
       botProfilesRef.current[botId] = botProfile
       
       allPlayers[botId] = {
@@ -729,7 +731,7 @@ export default function Game() {
     const words = seededShuffle(bank, seed)
     setGameWords(words)
     beginCountdown(() => startGame(words, 30))
-  }, [beginCountdown, startGame])
+  }, [beginCountdown, startGame, authUser, userStats])
 
   const finishGame = useCallback(() => {
     setFinalStreak(myMaxStreakRef.current)

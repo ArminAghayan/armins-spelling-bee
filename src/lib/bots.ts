@@ -103,3 +103,57 @@ export function shouldBotAnswerCorrectly(
 export function getBotThinkTime(minTime: number, maxTime: number): number {
   return minTime + Math.random() * (maxTime - minTime)
 }
+
+// Generate bot profile based on user stats
+export function getBotProfileForUser(userStats: any): any {
+  if (!userStats) {
+    // Default to intermediate for guests
+    return BOT_PROFILES[1] // Intermediate Bot
+  }
+
+  const { ranked_high_score, highest_streak, total_words_correct, total_words_attempted } = userStats
+  
+  // Calculate user skill metrics
+  const accuracy = total_words_attempted > 0 ? total_words_correct / total_words_attempted : 0.5
+  const avgScore = ranked_high_score || 0
+  const maxStreak = highest_streak || 0
+
+  // Determine user skill level based on multiple factors
+  let skillScore = 0
+  
+  // Score based on accuracy (0-30 points)
+  skillScore += accuracy * 30
+  
+  // Score based on high score (0-25 points)
+  if (avgScore >= 200) skillScore += 25
+  else if (avgScore >= 150) skillScore += 20
+  else if (avgScore >= 100) skillScore += 15
+  else if (avgScore >= 50) skillScore += 10
+  else if (avgScore >= 25) skillScore += 5
+  
+  // Score based on streak (0-20 points)
+  if (maxStreak >= 15) skillScore += 20
+  else if (maxStreak >= 10) skillScore += 15
+  else if (maxStreak >= 7) skillScore += 10
+  else if (maxStreak >= 5) skillScore += 5
+  
+  // Score based on experience (0-15 points)
+  if (total_words_attempted >= 500) skillScore += 15
+  else if (total_words_attempted >= 200) skillScore += 10
+  else if (total_words_attempted >= 100) skillScore += 5
+
+  // Map skill score to bot difficulty (0-90 scale)
+  if (skillScore >= 70) {
+    // Expert level user - use Expert bots
+    return BOT_PROFILES[3] // Expert Bot
+  } else if (skillScore >= 45) {
+    // Advanced level user - use Advanced bots
+    return BOT_PROFILES[2] // Advanced Bot
+  } else if (skillScore >= 20) {
+    // Intermediate level user - use Intermediate bots
+    return BOT_PROFILES[1] // Intermediate Bot
+  } else {
+    // Beginner level user - use Beginner bots
+    return BOT_PROFILES[0] // Beginner Bot
+  }
+}

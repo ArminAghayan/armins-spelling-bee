@@ -57,18 +57,18 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #111; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
 /* Animations */
 @keyframes rankUp {
-  0% { transform: translateY(10px); background: #1a1500; }
-  60% { background: #140f00; }
-  100% { transform: translateY(0); background: var(--surface); }
+  0% { transform: translateY(10px); background: var(--accent-pale); }
+  60% { background: var(--accent-pale); }
+  100% { transform: translateY(0); background: var(--surface2); }
 }
 @keyframes rankDown {
-  0% { background: #1a0a0a; }
-  100% { background: var(--surface); }
+  0% { background: var(--red-pale); }
+  100% { background: var(--surface2); }
 }
 @keyframes scorePop {
   0%, 100% { transform: scale(1); }
@@ -84,7 +84,7 @@ body {
 }
 @keyframes streakGlow {
   0%, 100% { background: var(--surface); }
-  50% { background: #1a1200; }
+  50% { background: var(--accent-pale); }
 }
 @keyframes livePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
