@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { avatarColor, type Word } from '@/lib/words'
 import type { Player } from '@/lib/types'
+import MobileBottomDrawer from '@/components/ui/MobileBottomDrawer'
 
 interface Props {
   players: Record<string, Player>
@@ -18,9 +19,20 @@ interface Props {
   onSkip: () => void
   onSpeak: () => void
   onLeave: () => void
+  // For mobile sidebar
+  authUser?: any
+  userStats?: any
+  onOpenAuth?: (mode: 'signin' | 'signup') => void
+  onSignOut?: () => void
+  onStatsUpdated?: (stats: any) => void
+  onOpenLeaderboard?: () => void
 }
 
-export default function GameScreen({ players, myId, currentWord, timeLeft, myScore, myStreak, recentWords, isRanked, wordCategory, feedItems, onSubmit, onSkip, onSpeak, onLeave }: Props) {
+export default function GameScreen({ 
+  players, myId, currentWord, timeLeft, myScore, myStreak, recentWords, isRanked, wordCategory, feedItems, 
+  onSubmit, onSkip, onSpeak, onLeave,
+  authUser, userStats, onOpenAuth, onSignOut, onStatsUpdated, onOpenLeaderboard
+}: Props) {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [answer, setAnswer] = useState('')
   const [inputState, setInputState] = useState<'idle' | 'ok' | 'no'>('idle')
@@ -87,7 +99,20 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
   const bgColor = inputState === 'ok' ? 'var(--accent-pale)' : inputState === 'no' ? 'var(--red-pale)' : 'var(--surface2)'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-page)' }}>
+    <>
+      {/* Mobile Bottom Drawer - no live leaderboard in game */}
+      <MobileBottomDrawer
+        authUser={authUser}
+        userStats={userStats}
+        onOpenAuth={onOpenAuth || (() => {})}
+        onSignOut={onSignOut || (() => {})}
+        onStatsUpdated={onStatsUpdated || (() => {})}
+        onGoHome={onLeave}
+        onOpenLeaderboard={onOpenLeaderboard}
+        currentScreen="game"
+      />
+      
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-page)' }}>
 
       {/* ── Desktop Live Leaderboard Sidebar ── */}
       <div style={{
@@ -146,7 +171,7 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
       </div>
 
       {/* ── Main game area ── */}
-      <div style={{ flex: 1, maxWidth: '640px', margin: '0 auto', padding: '24px 20px' }}>
+      <div className="game-main-area" style={{ flex: 1, maxWidth: '640px', margin: '0 auto', padding: '24px 20px' }}>
 
         {isRanked && (
           <div style={{ textAlign: 'center', marginBottom: '8px', fontSize: '11px', color: '#f59e0b', letterSpacing: '1px', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -306,5 +331,6 @@ export default function GameScreen({ players, myId, currentWord, timeLeft, mySco
         </div>
       )}
     </div>
+    </>
   )
 }

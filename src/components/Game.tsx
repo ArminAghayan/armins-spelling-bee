@@ -911,7 +911,12 @@ export default function Game() {
 
   // ── Leaderboard ──
   const openLeaderboard = useCallback(() => {
-    setShowLeaderboard(true)
+    // On mobile, navigate to leaderboard screen; on desktop, show modal
+    if (window.innerWidth <= 819) {
+      setScreen('leaderboard')
+    } else {
+      setShowLeaderboard(true)
+    }
   }, [])
 
   // ── URL code prefill ──
@@ -1008,6 +1013,12 @@ export default function Game() {
           onSkip={skipWord}
           onSpeak={() => currentWord && speak(currentWord.w, voiceSpeed)}
           onLeave={leaveGame}
+          authUser={authUser}
+          userStats={userStats}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+          onStatsUpdated={handleStatsUpdated}
+          onOpenLeaderboard={openLeaderboard}
         />
       )}
 
@@ -1023,13 +1034,44 @@ export default function Game() {
           onPlayAgain={backToLobby}
           onLeave={leaveRoom}
           onOpenLeaderboard={openLeaderboard}
+          authUser={authUser}
+          userStats={userStats}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+          onStatsUpdated={handleStatsUpdated}
         />
       )}
 
+      {screen === 'leaderboard' && (
+        <LeaderboardScreen
+          myName={myName}
+          onBack={() => setScreen('home')}
+          authUser={authUser}
+          userStats={userStats}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+          onStatsUpdated={handleStatsUpdated}
+          onGoHome={() => setScreen('home')}
+        />
+      )}
+
+      {/* Desktop leaderboard modal */}
       {showLeaderboard && (
         <LeaderboardScreen
           myName={myName}
           onBack={() => setShowLeaderboard(false)}
+          authUser={authUser}
+          userStats={userStats}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+          onStatsUpdated={handleStatsUpdated}
+          onGoHome={() => {
+            setShowLeaderboard(false)
+            if (screen !== 'home') {
+              leaveRoom()
+            }
+          }}
+          isModal={true}
         />
       )}
 

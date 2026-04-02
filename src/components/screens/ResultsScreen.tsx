@@ -1,5 +1,7 @@
 'use client'
+import { useState } from 'react'
 import { avatarColor } from '@/lib/words'
+import MobileBottomDrawer from '@/components/ui/MobileBottomDrawer'
 import type { Player } from '@/lib/types'
 import { IconEye, IconTrophy } from '@tabler/icons-react'
 
@@ -14,9 +16,18 @@ interface Props {
   onPlayAgain: () => void
   onLeave: () => void
   onOpenLeaderboard: () => void
+  // For mobile sidebar
+  authUser?: any
+  userStats?: any
+  onOpenAuth?: (mode: 'signin' | 'signup') => void
+  onSignOut?: () => void
+  onStatsUpdated?: (stats: any) => void
 }
 
-export default function ResultsScreen({ scores, myId, isRanked, myStreak, myLongestWord, myAttempts, onPlayAgain, onLeave, onOpenLeaderboard }: Props) {
+export default function ResultsScreen({ 
+  scores, myId, myName, isRanked, myStreak, myLongestWord, myAttempts, onPlayAgain, onLeave, onOpenLeaderboard,
+  authUser, userStats, onOpenAuth, onSignOut, onStatsUpdated
+}: Props) {
   const all = Object.entries(scores).map(([id, s]) => ({ id, ...s })).sort((a, b) => b.score - a.score)
   const myFinal = scores[myId] || { score: 0, correct: 0 }
   const myRank = all.findIndex(p => p.id === myId) + 1
@@ -27,7 +38,20 @@ export default function ResultsScreen({ scores, myId, isRanked, myStreak, myLong
   const podiumHeight = [52, 76, 36]
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-page)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 20px' }}>
+    <>
+      {/* Mobile Bottom Drawer */}
+      <MobileBottomDrawer
+        authUser={authUser}
+        userStats={userStats}
+        onOpenAuth={onOpenAuth || (() => {})}
+        onSignOut={onSignOut || (() => {})}
+        onStatsUpdated={onStatsUpdated || (() => {})}
+        onGoHome={onLeave}
+        onOpenLeaderboard={onOpenLeaderboard}
+        currentScreen="results"
+      />
+      
+      <div style={{ minHeight: '100vh', background: 'var(--bg-page)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 20px' }}>
       <div style={{ width: '100%', maxWidth: '860px' }}>
 
         {/* Header */}
@@ -153,5 +177,6 @@ export default function ResultsScreen({ scores, myId, isRanked, myStreak, myLong
 
       </div>
     </div>
+    </>
   )
 }

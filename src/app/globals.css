@@ -44,7 +44,19 @@ body.light {
   --green: #16a34a;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0;
+  /* Disable zoom on mobile */
+  touch-action: manipulation;
+}
+
+html {
+  /* Prevent zoom on mobile */
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
@@ -53,6 +65,13 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
+  /* Additional zoom prevention */
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 /* Scrollbar */
@@ -116,6 +135,64 @@ body {
   .home-sidebar-col { display: flex !important; }
   .home-account     { display: block !important; }
   .home-title-bar   { display: block !important; }
+  
+  /* Hide mobile sidebar trigger on desktop */
+  .mobile-sidebar-trigger { display: none !important; }
+}
+
+/* Mobile bottom navigation */
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* Mobile-specific zoom prevention */
+@media (max-width: 819px) {
+  /* Show mobile bottom navigation */
+  .mobile-bottom-nav {
+    display: flex !important;
+  }
+  
+  /* Prevent zoom and selection on mobile */
+  * {
+    touch-action: manipulation !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+  
+  /* Allow text selection in input fields */
+  input, textarea {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+  }
+  
+  /* Add bottom padding to prevent content from being hidden behind nav */
+  body {
+    padding-bottom: 70px;
+  }
+  
+  /* Hide desktop elements */
+  .home-sidebar-col,
+  .home-account {
+    display: none !important;
+  }
+  
+  /* Hide mobile menu button since we're using bottom nav */
+  .mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+/* Hide title text on very small screens */
+@media (max-width: 480px) {
+  .home-title-text {
+    display: none !important;
+  }
 }
 
 .animate-rank-up { animation: rankUp 0.5s ease forwards; }

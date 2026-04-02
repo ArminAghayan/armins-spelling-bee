@@ -11,6 +11,7 @@ import StatsModal from '@/components/ui/StatsModal'
 import ProfileModal from '@/components/ui/ProfileModal'
 import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
 import UpdatesModal from '@/components/ui/UpdatesModal'
+import MobileBottomDrawer from '@/components/ui/MobileBottomDrawer'
 
 const GAME_TYPES = [
   { id: 'default',  label: 'Random',  sub: 'Mixed vocabulary',      Icon: IconDice5         },
@@ -82,7 +83,20 @@ export default function WaitingScreen({
   const ranked = Object.values(best).sort((a, b) => b.score - a.score).slice(0, 10)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '0' }}>
+    <>
+      {/* Mobile Bottom Drawer */}
+      <MobileBottomDrawer
+        authUser={authUser}
+        userStats={userStats}
+        onOpenAuth={onOpenAuth}
+        onSignOut={onSignOut}
+        onStatsUpdated={onStatsUpdated}
+        onGoHome={onLeave}
+        onOpenLeaderboard={onOpenLeaderboard}
+        currentScreen="waiting"
+      />
+      
+      <div style={{ minHeight: '100vh', background: 'var(--bg-page)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '0' }}>
 
       {/* Full-width title bar (desktop only) */}
       <div className="home-title-bar" style={{ width: '100%', maxWidth: '984px' }}>
@@ -425,5 +439,6 @@ export default function WaitingScreen({
       {/* Updates Modal */}
       {showUpdates && <UpdatesModal onClose={() => setShowUpdates(false)} />}
     </div>
+    </>
   )
 }

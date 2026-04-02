@@ -10,6 +10,7 @@ import StatsModal from '@/components/ui/StatsModal'
 import ProfileModal from '@/components/ui/ProfileModal'
 import PlayerStatsModal from '@/components/ui/PlayerStatsModal'
 import UpdatesModal from '@/components/ui/UpdatesModal'
+import MobileBottomDrawer from '@/components/ui/MobileBottomDrawer'
 
 const GAME_TYPES = [
   { id: 'default',  label: 'Random',  sub: 'Mixed vocabulary',       isRanked: false, Icon: IconDice5        },
@@ -120,14 +121,27 @@ export default function HomeScreen({
   const ranked = sidebarData.slice(0, 10)
 
   return (
-    <div className="setup-wrap" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '24px', background: 'var(--bg-page)' }}>
+    <>
+      {/* Mobile Bottom Drawer */}
+      <MobileBottomDrawer
+        authUser={authUser}
+        userStats={userStats}
+        onOpenAuth={onOpenAuth}
+        onSignOut={onSignOut}
+        onStatsUpdated={onStatsUpdated}
+        onOpenLeaderboard={onOpenLeaderboard}
+        currentScreen="home"
+      />
+      
+      <div className="setup-wrap" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', gap: '24px', background: 'var(--bg-page)' }}>
 
-      {/* Full-width title bar (desktop only) */}
-      <div className="home-title-bar" style={{ width: '100%', maxWidth: '984px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap' }}>
+      {/* Full-width title bar */}
+      <div style={{ width: '100%', maxWidth: '984px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="home-title-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap' }}>
           <GalaxyIcon size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
-          Carbon Spelling
+          <span className="home-title-text">Carbon Spelling</span>
         </div>
+        
       </div>
 
       {/* Columns row */}
@@ -219,7 +233,7 @@ export default function HomeScreen({
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}><IconUser size={24} stroke={1.5} /></div>
                     <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Solo</strong>
-                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Practice alone</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Play Solo</span>
                   </button>
                   <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); onCreateRoom(effectiveName, 'default', false) }}
                     style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', textAlign: 'center' }}
@@ -259,7 +273,7 @@ export default function HomeScreen({
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'var(--surface2)' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}><IconUser size={24} stroke={1.5} /></div>
                     <strong style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>Solo Ranked</strong>
-                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Practice for rank</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text5)' }}>Play Solo</span>
                   </button>
                   <button onClick={() => { if (!effectiveName) { setErr('Enter your name first'); return }; setErr(''); onCreateRoom(effectiveName, 'ranked', true) }}
                     style={{ padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)', background: 'var(--surface2)', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', textAlign: 'center' }}
@@ -526,5 +540,6 @@ export default function HomeScreen({
         {/* Updates Modal */}
         {showUpdates && <UpdatesModal onClose={() => setShowUpdates(false)} />}
     </div>
+    </>
   )
 }
