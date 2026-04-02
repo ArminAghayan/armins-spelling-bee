@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
-import { IconX, IconMail, IconLock, IconUser, IconArrowRight, IconInbox } from '@tabler/icons-react'
-import { authSignIn, authSignUp } from '@/lib/supabase'
+import { useState, useEffect, useCallback } from 'react'
+import { IconX, IconMail, IconLock, IconUser, IconArrowRight, IconInbox, IconCheck, IconAlertCircle } from '@tabler/icons-react'
+import { authSignIn, authSignUp, checkUsernameExists } from '@/lib/supabase'
+import { validateUsername } from '@/lib/usernameValidation'
 
 interface Props {
   initialMode: 'signin' | 'signup'
@@ -27,11 +28,86 @@ export default function AuthModal({ initialMode, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [showConfirmScreen, setShowConfirmScreen] = useState(false)
   const [confirmedEmail, setConfirmedEmail] = useState('')
+  
+  // Username validation state
+  const [usernameValidation, setUsernameValidation] = useState<{
+    isValid: boolean
+    error?: string
+    isChecking: boolean
+    isAvailable?: boolean
+  }>({ isValid: true, isChecking: false })
+
+  // Debounced username validation
+  const validateUsernameAsync = useCallback(async (username: string) => {
+    if (!username.trim()) {
+      setUsernameValidation({ isValid: true, isChecking: false })
+      return
+    }
+
+    setUsernameValidation(prev => ({ ...prev, isChecking: true }))
+
+    try {
+      // First validate format and content
+      const formatValidation = validateUsername(username)
+      if (!formatValidation.isValid) {
+        setUsernameValidation({
+          isValid: false,
+          error: formatValidation.error,
+          isChecking: false,
+          isAvailable: false
+        })
+        return
+      }
+
+      // Then check availability
+      const exists = await checkUsernameExists(username.trim())
+      if (exists) {
+        setUsernameValidation({
+          isValid: false,
+          error: 'This username is already taken',
+          isChecking: false,
+          isAvailable: false
+        })
+      } else {
+        setUsernameValidation({
+          isValid: true,
+          isChecking: false,
+          isAvailable: true
+        })
+      }
+    } catch (error) {
+      setUsernameValidation({
+        isValid: false,
+        error: 'Unable to check username availability',
+        isChecking: false,
+        isAvailable: false
+      })
+    }
+  }, [])
+
+  // Debounce username validation
+  useEffect(() => {
+    if (mode !== 'signup') return
+
+    const timeoutId = setTimeout(() => {
+      validateUsernameAsync(displayName)
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [displayName, mode, validateUsernameAsync])
 
   const handleSubmit = async () => {
     setErr('')
     if (!email.trim() || !password.trim()) { setErr('Please fill in all fields'); return }
     if (mode === 'signup' && !displayName.trim()) { setErr('Enter a display name'); return }
+    if (mode === 'signup' && !usernameValidation.isValid) { 
+      setErr(usernameValidation.error || 'Please choose a valid username'); 
+      return 
+    }
+    if (mode === 'signup' && usernameValidation.isChecking) { 
+      setErr('Please wait while we check username availability'); 
+      return 
+    }
     if (password.length < 6) { setErr('Password must be at least 6 characters'); return }
 
     setLoading(true)
@@ -69,10 +145,17 @@ export default function AuthModal({ initialMode, onClose }: Props) {
   }
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
-      onClick={onClose}
-    >
+    <>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}
+        onClick={onClose}
+      >
       <div
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px 24px', width: '100%', maxWidth: '380px' }}
         onClick={e => e.stopPropagation()}
@@ -154,7 +237,11 @@ export default function AuthModal({ initialMode, onClose }: Props) {
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: '4px', background: 'var(--surface2)', borderRadius: '10px', padding: '4px', marginBottom: '22px' }}>
               {(['signin', 'signup'] as const).map(m => (
-                <button key={m} onClick={() => { setMode(m); setErr('') }}
+                <button key={m} onClick={() => { 
+                  setMode(m); 
+                  setErr(''); 
+                  setUsernameValidation({ isValid: true, isChecking: false });
+                }}
                   style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: mode === m ? 'var(--surface)' : 'transparent', color: mode === m ? 'var(--text)' : 'var(--text4)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif', transition: 'all .12s', boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.2)' : 'none' }}>
                   {m === 'signin' ? 'Sign In' : 'Sign Up'}
                 </button>
@@ -168,10 +255,64 @@ export default function AuthModal({ initialMode, onClose }: Props) {
                 <div style={{ position: 'relative' }}>
                   <IconUser size={15} stroke={1.5} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text5)', pointerEvents: 'none' }} />
                   <input value={displayName} onChange={e => setDisplayName(e.target.value)}
-                    placeholder="Your in-game name" maxLength={16} style={inputStyle}
-                    onFocus={e => (e.target.style.borderColor = '#f59e0b')}
-                    onBlur={e => (e.target.style.borderColor = 'var(--border)')} />
+                    placeholder="Your in-game name" maxLength={16} 
+                    style={{
+                      ...inputStyle,
+                      borderColor: displayName.trim() && !usernameValidation.isValid ? '#f87171' : 
+                                  displayName.trim() && usernameValidation.isValid && usernameValidation.isAvailable ? '#10b981' : 
+                                  'var(--border)',
+                      paddingRight: '36px'
+                    }}
+                    onFocus={e => {
+                      if (!displayName.trim() || usernameValidation.isValid) {
+                        e.target.style.borderColor = '#f59e0b'
+                      }
+                    }}
+                    onBlur={e => {
+                      if (displayName.trim() && !usernameValidation.isValid) {
+                        e.target.style.borderColor = '#f87171'
+                      } else if (displayName.trim() && usernameValidation.isValid && usernameValidation.isAvailable) {
+                        e.target.style.borderColor = '#10b981'
+                      } else {
+                        e.target.style.borderColor = 'var(--border)'
+                      }
+                    }} />
+                  
+                  {/* Validation indicator */}
+                  <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                    {usernameValidation.isChecking ? (
+                      <div style={{ width: '15px', height: '15px', border: '2px solid var(--text5)', borderTop: '2px solid #f59e0b', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                    ) : displayName.trim() && usernameValidation.isValid && usernameValidation.isAvailable ? (
+                      <IconCheck size={15} stroke={2} style={{ color: '#10b981' }} />
+                    ) : displayName.trim() && !usernameValidation.isValid ? (
+                      <IconAlertCircle size={15} stroke={2} style={{ color: '#f87171' }} />
+                    ) : null}
+                  </div>
                 </div>
+                
+                {/* Validation message */}
+                {displayName.trim() && (usernameValidation.error || usernameValidation.isAvailable) && (
+                  <div style={{ 
+                    fontSize: '11px', 
+                    marginTop: '4px', 
+                    color: usernameValidation.isValid && usernameValidation.isAvailable ? '#10b981' : '#f87171',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {usernameValidation.isValid && usernameValidation.isAvailable ? (
+                      <>
+                        <IconCheck size={12} stroke={2} />
+                        Username is available
+                      </>
+                    ) : (
+                      <>
+                        <IconAlertCircle size={12} stroke={2} />
+                        {usernameValidation.error}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -218,6 +359,7 @@ export default function AuthModal({ initialMode, onClose }: Props) {
           </>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

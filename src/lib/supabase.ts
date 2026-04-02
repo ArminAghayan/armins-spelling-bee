@@ -111,6 +111,22 @@ export async function getUserStatsByName(displayName: string): Promise<UserStats
   return data
 }
 
+export async function checkUsernameExists(displayName: string): Promise<boolean> {
+  const { data, error } = await supa
+    .from('user_stats')
+    .select('id')
+    .eq('display_name', displayName)
+    .single()
+  
+  // If there's an error and it's not "not found", throw it
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(error.message)
+  }
+  
+  // Return true if user exists (data is not null), false otherwise
+  return data !== null
+}
+
 export async function upsertUserStats(stats: Partial<UserStats> & { id: string }) {
   await supa
     .from('user_stats')
@@ -120,6 +136,21 @@ export async function upsertUserStats(stats: Partial<UserStats> & { id: string }
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function authSignUp(email: string, password: string, displayName: string) {
+  // Import validation functions
+  const { validateUsername } = await import('./usernameValidation')
+  
+  // Validate username format and content
+  const validation = validateUsername(displayName)
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'Invalid username')
+  }
+  
+  // Check if username already exists
+  const usernameExists = await checkUsernameExists(displayName.trim())
+  if (usernameExists) {
+    throw new Error('This username is already taken. Please choose a different one.')
+  }
+  
   const { data, error } = await supa.auth.signUp({ email, password })
   if (error) throw new Error(error.message)
   if (data.user) {
@@ -127,7 +158,7 @@ export async function authSignUp(email: string, password: string, displayName: s
     // (the session may not be active yet right after signUp)
     const { error: rpcError } = await supa.rpc('init_user_stats', {
       p_user_id: data.user.id,
-      p_display_name: displayName,
+      p_display_name: displayName.trim(),
     })
     if (rpcError) throw new Error(rpcError.message)
   }
