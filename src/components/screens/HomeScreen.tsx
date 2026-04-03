@@ -137,7 +137,7 @@ export default function HomeScreen({
 
       {/* Full-width title bar */}
       <div style={{ width: '100%', maxWidth: '984px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="home-title-bar" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap' }}>
+        <div className="home-title-bar" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', fontSize: '28px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', whiteSpace: 'nowrap' }}>
           <GalaxyIcon size={52} stroke={1.5} style={{ width: '52px', height: '52px', flexShrink: 0 }} />
           <span className="home-title-text">Carbon Spelling</span>
         </div>

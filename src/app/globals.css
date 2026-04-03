@@ -134,7 +134,7 @@ body {
 @media (min-width: 820px) {
   .home-sidebar-col { display: flex !important; }
   .home-account     { display: block !important; }
-  .home-title-bar   { display: block !important; }
+  .home-title-bar   { display: flex !important; }
   
   /* Hide mobile sidebar trigger on desktop */
   .mobile-sidebar-trigger { display: none !important; }
