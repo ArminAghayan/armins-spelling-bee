@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
 import {
   supa, submitScore,
-  getUserStats, upsertUserStats, authSignOut, type UserStats,
+  getUserStats, upsertUserStats, authSignOut, ensureUserStatsExist, type UserStats,
 } from '@/lib/supabase'
 import { getWordBank, seededShuffle, genCode, avatarColor, type Word } from '@/lib/words'
 import { generateBotNames, getRandomBotProfile, shouldBotAnswerCorrectly, getBotThinkTime, getBotProfileForUser } from '@/lib/bots'
@@ -210,49 +210,81 @@ export default function Game() {
     scores: Record<string, { name: string; score: number; correct: number }>
   ) => {
     const user = authUserRef.current
-    if (!user) return
+    if (!user) {
+      console.log('saveGameStats: No authenticated user found')
+      return
+    }
+
+    // Only save stats for ranked games
+    if (!isRankedRef.current) {
+      console.log('saveGameStats: Skipping stats save - not a ranked game')
+      return
+    }
 
     const myFinal = scores[myId.current]
-    if (!myFinal) return
+    if (!myFinal) {
+      console.log('saveGameStats: No final score found for current player')
+      return
+    }
+
+    console.log('saveGameStats: Starting to save stats for ranked game - user:', user.id, 'Final score:', myFinal)
+    console.log('saveGameStats: Game context - isSolo:', isSoloRef.current, 'isQuickGame:', isQuickGameRef.current, 'isRanked:', isRankedRef.current)
 
     const playerCount = Object.keys(scores).length
     const allScores = Object.values(scores).map(s => s.score)
     const maxScore = Math.max(...allScores)
     const isMultiplayer = !isSoloRef.current && playerCount > 1
+    
+    // Only ranked multiplayer games count toward wins/losses
     const isWin = isMultiplayer && myFinal.score >= maxScore && myFinal.score > 0
-    const isLoss = isMultiplayer && !isWin
+    const isLoss = isMultiplayer && myFinal.score < maxScore && myFinal.score >= 0
+    
+    console.log('saveGameStats: Game results - isMultiplayer:', isMultiplayer, 'isWin:', isWin, 'isLoss:', isLoss)
 
     try {
-      const current = await getUserStats(user.id)
+      // Ensure user stats exist before trying to update them
+      const displayName = myNameRef.current || 'Unknown Player'
+      const current = await ensureUserStatsExist(user.id, displayName)
+      console.log('saveGameStats: Current stats:', current)
 
-      const newWinsByMode = { ...(current?.wins_by_mode || {}) }
+      const newWinsByMode = { ...current.wins_by_mode }
       if (isWin) {
-        const mode = wordCategoryRef.current
+        // For ranked games, use 'ranked' as the mode regardless of category
+        const mode = 'ranked'
         newWinsByMode[mode] = (newWinsByMode[mode] || 0) + 1
       }
 
       const longestNew = myLongestWordRef.current
-      const longestOld = current?.longest_word || ''
+      const longestOld = current.longest_word
 
-      await upsertUserStats({
+      const statsUpdate = {
         id: user.id,
-        display_name: current?.display_name || '',
-        ranked_high_score: Math.max(current?.ranked_high_score || 0, isRankedRef.current ? myFinal.score : 0),
-        highest_streak: Math.max(current?.highest_streak || 0, myMaxStreakRef.current),
-        total_words_attempted: (current?.total_words_attempted || 0) + myAttemptsRef.current,
-        total_words_correct: (current?.total_words_correct || 0) + myFinal.correct,
+        display_name: current.display_name,
+        ranked_high_score: Math.max(current.ranked_high_score, myFinal.score),
+        highest_streak: Math.max(current.highest_streak, myMaxStreakRef.current),
+        total_words_attempted: current.total_words_attempted + myAttemptsRef.current,
+        total_words_correct: current.total_words_correct + myFinal.correct,
         longest_word: longestNew.length > longestOld.length ? longestNew : longestOld,
-        total_wins: (current?.total_wins || 0) + (isWin ? 1 : 0),
-        total_losses: (current?.total_losses || 0) + (isLoss ? 1 : 0),
+        total_wins: current.total_wins + (isWin ? 1 : 0),
+        total_losses: current.total_losses + (isLoss ? 1 : 0),
         wins_by_mode: newWinsByMode,
-      })
+      }
+
+      console.log('saveGameStats: Updating stats with:', statsUpdate)
+      await upsertUserStats(statsUpdate)
 
       const updated = await getUserStats(user.id)
+      console.log('saveGameStats: Updated stats retrieved:', updated)
       if (updated) setUserStats(updated)
     } catch (e) {
       console.error('Failed to save game stats:', e)
+      // Log more details about the error
+      if (e instanceof Error) {
+        console.error('Error message:', e.message)
+        console.error('Error stack:', e.stack)
+      }
     }
-  }, [])
+  }, [setUserStats])
 
   // ── Message handler ──
   const handleMsg = useCallback((event: string, d: Record<string, unknown> & { from?: string }) => {

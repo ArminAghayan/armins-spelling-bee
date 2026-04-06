@@ -94,11 +94,21 @@ export interface UserStats {
 }
 
 export async function getUserStats(userId: string): Promise<UserStats | null> {
-  const { data } = await supa
+  const { data, error } = await supa
     .from('user_stats')
     .select('*')
     .eq('id', userId)
     .single()
+  
+  if (error) {
+    // If the user doesn't exist yet, that's not an error - return null
+    if (error.code === 'PGRST116') {
+      return null
+    }
+    console.error('getUserStats error:', error)
+    throw new Error(`Failed to get user stats: ${error.message}`)
+  }
+  
   return data
 }
 
@@ -128,9 +138,46 @@ export async function checkUsernameExists(displayName: string): Promise<boolean>
 }
 
 export async function upsertUserStats(stats: Partial<UserStats> & { id: string }) {
-  await supa
+  const { data, error } = await supa
     .from('user_stats')
     .upsert({ ...stats, updated_at: new Date().toISOString() })
+  
+  if (error) {
+    console.error('upsertUserStats error:', error)
+    throw new Error(`Failed to update user stats: ${error.message}`)
+  }
+  
+  return data
+}
+
+export async function ensureUserStatsExist(userId: string, displayName: string): Promise<UserStats> {
+  let stats = await getUserStats(userId)
+  
+  if (!stats) {
+    console.log('User stats do not exist, creating initial stats for user:', userId)
+    // Create initial stats if they don't exist
+    const initialStats: UserStats = {
+      id: userId,
+      display_name: displayName,
+      ranked_high_score: 0,
+      highest_streak: 0,
+      total_words_attempted: 0,
+      total_words_correct: 0,
+      longest_word: '',
+      total_wins: 0,
+      total_losses: 0,
+      wins_by_mode: {},
+    }
+    
+    await upsertUserStats(initialStats)
+    stats = await getUserStats(userId)
+    
+    if (!stats) {
+      throw new Error('Failed to create initial user stats')
+    }
+  }
+  
+  return stats
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
